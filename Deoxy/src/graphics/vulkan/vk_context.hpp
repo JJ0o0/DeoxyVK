@@ -24,11 +24,21 @@ namespace deoxy::graphics {
             void DrawFrame();
         private:
             // FUNÇÕES
+            static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+                VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+                VkDebugUtilsMessageTypeFlagsEXT type,
+                const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
+                void* userData
+            );
+
             void check(bool result, const std::string& errorMessage);
             void check(VkResult result);
             void checkSwapchain(VkResult result);
 
+            bool validationLayersAvailable();
+
             void createInstance();
+            void setupDebugMessenger();
             void createSurface(platform::Window& window);
 
             void selectPhysicalDevice();
@@ -60,11 +70,19 @@ namespace deoxy::graphics {
             // VARIÁVEIS
             static constexpr std::uint32_t FRAMES_IN_FLIGHT = 1;
 
+            #ifndef NDEBUG
+                static constexpr bool ENABLE_VALIDATION = true;
+            #else
+                static constexpr bool ENABLE_VALIDATION = false;
+            #endif
+
             VkInstance m_instance = VK_NULL_HANDLE;
             VkSurfaceKHR m_surface = VK_NULL_HANDLE;
 
             VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
             VkDevice m_device = VK_NULL_HANDLE;
+
+            VkDebugUtilsMessengerEXT m_debugMessenger = VK_NULL_HANDLE;
 
             VkQueue m_queue = VK_NULL_HANDLE;
             uint32_t m_graphicsQueueFamily = std::numeric_limits<std::uint32_t>::max();

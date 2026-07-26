@@ -4,6 +4,7 @@
 #include <deoxy/platform/logger.hpp>
 #include <SDL3/SDL_vulkan.h>
 
+#include <string_view>
 #include <stdexcept>
 #include <format>
 #include <vector>
@@ -14,6 +15,8 @@ namespace deoxy::graphics {
 
         createInstance();
         volkLoadInstance(m_instance);
+
+        setupDebugMessenger();
 
         createSurface(window);
         selectPhysicalDevice();
@@ -65,6 +68,7 @@ namespace deoxy::graphics {
         if (m_allocator != nullptr) vmaDestroyAllocator(m_allocator);
         if (m_device != VK_NULL_HANDLE) vkDestroyDevice(m_device, nullptr);
         if (m_surface != VK_NULL_HANDLE) vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+        if (m_debugMessenger != VK_NULL_HANDLE) vkDestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
         if (m_instance != VK_NULL_HANDLE) vkDestroyInstance(m_instance, nullptr);
     }
 
@@ -155,6 +159,23 @@ namespace deoxy::graphics {
         check(presentResult);
     }
 
+    VKAPI_ATTR VkBool32 VKAPI_CALL VulkanContext::debugCallback(
+        VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+        VkDebugUtilsMessageTypeFlagsEXT type,
+        const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
+        void* userData
+    ) {
+        if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+            platform::Logger::Error("Vulkan Validation: {}", callbackData->pMessage);
+        } else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+            platform::Logger::Warn("Vulkan Validation: {}", callbackData->pMessage);
+        } else {
+            platform::Logger::Info("Vulkan Validation: {}", callbackData->pMessage);
+        }
+
+        return VK_FALSE;
+    }
+
     void VulkanContext::check(bool result, const std::string& errorMessage) {
         if (!result) {
             std::string msg = std::format("Vulkan call returned an error ({})", errorMessage);
@@ -181,6 +202,22 @@ namespace deoxy::graphics {
         }
     }
 
+    bool VulkanContext::validationLayersAvailable() {
+        // Pega as layers
+        uint32_t layerCount = 0;
+        check(vkEnumerateInstanceLayerProperties(&layerCount, nullptr));
+
+        std::vector<VkLayerProperties> layers(layerCount);
+        check(vkEnumerateInstanceLayerProperties(&layerCount, layers.data()));
+
+        // Pegando a layer com a validation
+        for (const VkLayerProperties& layer : layers) {
+            if (std::string_view{layer.layerName} == "VK_LAYER_KHRONOS_validation") return true;
+        }
+
+        return false;
+    }
+
     void VulkanContext::createInstance() {
         // Informações da Aplicação
         VkApplicationInfo applicationInfo {
@@ -191,17 +228,46 @@ namespace deoxy::graphics {
 
         // Pegando extensões do sistema operacional
         uint32_t extensionsCount { 0 };
-        char const* const* extensions { SDL_Vulkan_GetInstanceExtensions(&extensionsCount) };
+        char const* const* sdlExtensions { SDL_Vulkan_GetInstanceExtensions(&extensionsCount) };
+        check(sdlExtensions != nullptr, "Couldn't get SDL Vulkan extensions");
+
+        // Pegando a extensão da validation layer
+        std::vector<const char*> extensions(sdlExtensions, sdlExtensions + extensionsCount);
+        const char* validationLayer = "VK_LAYER_KHRONOS_validation";
+
+        if (ENABLE_VALIDATION) {
+            check(validationLayersAvailable(), "VK_LAYER_KHRONOS_validation is not available");
+            extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        }
 
         // Criando instância
         VkInstanceCreateInfo instanceCI {
             .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             .pApplicationInfo = &applicationInfo,
-            .enabledExtensionCount = extensionsCount,
-            .ppEnabledExtensionNames = extensions
+            .enabledLayerCount = ENABLE_VALIDATION ? 1u : 0u,
+            .ppEnabledLayerNames = ENABLE_VALIDATION ? &validationLayer : nullptr,
+            .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+            .ppEnabledExtensionNames = extensions.data()
         };
 
         check(vkCreateInstance(&instanceCI, nullptr, &m_instance));
+    }
+
+    void VulkanContext::setupDebugMessenger() {
+        if (!ENABLE_VALIDATION) return;
+
+        // Configurando o messenger e criando
+        VkDebugUtilsMessengerCreateInfoEXT messengerCI {
+            .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+            .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                               VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+            .messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                           VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                           VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+            .pfnUserCallback = debugCallback
+        };
+
+        check(vkCreateDebugUtilsMessengerEXT(m_instance, &messengerCI, nullptr, &m_debugMessenger));
     }
 
     void VulkanContext::createSurface(platform::Window& window) {
