@@ -1,0 +1,7 @@
+.cache/
+build/
+build-windows/
+dist/
+vcpkg/
+
+mingw-w64.cmake
