@@ -1,7 +1,6 @@
-#include <deoxy/deoxy.hpp>
-#include <iostream>
+#include <sandbox_application.hpp>
 
 int main() {
-    std::cout << "Hello Deoxy!\n";
-    return DEOXY_SUCCESS;
+    SandboxApplication app;
+    return app.Run();
 }

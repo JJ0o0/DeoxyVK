@@ -1,5 +1,4 @@
 #pragma once
-#include <cstdint>
 
-static constexpr uint8_t DEOXY_SUCCESS = 0;
-static constexpr uint8_t DEOXY_FAILURE = 1;
+#include <deoxy/core/application.hpp>
+#include <deoxy/platform/logger.hpp>

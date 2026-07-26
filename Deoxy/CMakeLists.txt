@@ -4,6 +4,12 @@ add_library(Deoxy::Deoxy ALIAS Deoxy)
 target_sources(Deoxy
     PRIVATE
         "src/vma_implementation.cpp"
+
+        "src/core/application.cpp"
+
+        "src/platform/message_box.cpp"
+        "src/platform/logger.cpp"
+        "src/platform/window.cpp"
 )
 
 target_include_directories(Deoxy
@@ -27,10 +33,12 @@ target_compile_definitions(Deoxy
 )
 
 target_link_libraries(Deoxy
-    PUBLIC
+    PRIVATE
         SDL3::SDL3
         volk::volk
         glm::glm
-    PRIVATE
         GPUOpen::VulkanMemoryAllocator
+
+        spdlog::spdlog
+        tinyfiledialogs::tinyfiledialogs
 )
