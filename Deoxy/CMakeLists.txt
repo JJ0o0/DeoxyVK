@@ -7,6 +7,9 @@ target_sources(Deoxy
 
         "src/core/application.cpp"
 
+        "src/graphics/vulkan/vk_context.cpp"
+        "src/graphics/renderer.cpp"
+
         "src/platform/message_box.cpp"
         "src/platform/logger.cpp"
         "src/platform/window.cpp"

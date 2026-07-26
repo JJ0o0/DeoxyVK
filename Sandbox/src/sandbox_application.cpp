@@ -16,7 +16,7 @@ void SandboxApplication::OnUpdate(float deltaTime){
 }
 
 void SandboxApplication::OnRender() {
-    // Renderer.Render();
+    GetRenderer().Render();
 }
 
 void SandboxApplication::OnQuit() {

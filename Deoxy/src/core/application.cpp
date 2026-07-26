@@ -15,6 +15,7 @@ namespace deoxy::core {
         try {
             platform::Logger::Info("Initializing...");
             m_window = std::make_unique<platform::Window>(m_windowProperties);
+            m_renderer = std::make_unique<graphics::Renderer>(*m_window);
 
             OnStart();
 
@@ -38,6 +39,7 @@ namespace deoxy::core {
             }
 
             OnQuit();
+            m_renderer.reset();
             m_window.reset();
             platform::Logger::Info("Quitting...");
 
@@ -49,4 +51,10 @@ namespace deoxy::core {
             return DEOXY_FAILURE;
         }
     }
+
+    platform::Window& Application::GetWindow() { return *m_window; }
+    const platform::Window& Application::GetWindow() const { return *m_window; }
+
+    graphics::Renderer& Application::GetRenderer() { return *m_renderer; }
+    const graphics::Renderer& Application::GetRenderer() const { return *m_renderer; }
 }

@@ -4,6 +4,11 @@
 #include <memory>
 #include <string>
 
+struct SDL_Window;
+namespace deoxy::graphics {
+    class VulkanContext;
+}
+
 namespace deoxy::platform {
     struct WindowProperties {
         std::string Title = "DeoxyVK";
@@ -26,6 +31,10 @@ namespace deoxy::platform {
 
             const WindowProperties& GetProperties() const;
         private:
+            friend class deoxy::graphics::VulkanContext;
+
+            SDL_Window* GetHandle() const;
+
             struct Impl;
             std::unique_ptr<Impl> m_impl;
 

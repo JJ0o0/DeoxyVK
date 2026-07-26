@@ -9,6 +9,8 @@ namespace deoxy::platform {
         bool ShouldClose = false;
     };
 
+    SDL_Window* Window::GetHandle() const { return m_impl->Handle; }
+
     Window::Window(const WindowProperties& properties)
         : m_impl(std::make_unique<Impl>()), m_properties(properties) {
         if (!SDL_Init(SDL_INIT_VIDEO)) {
