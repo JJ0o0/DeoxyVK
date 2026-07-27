@@ -34,7 +34,7 @@ namespace deoxy::graphics {
         volkLoadDevice(m_device);
 
         createCommandPool();
-        createCommandBuffer();
+        createCommandBuffers();
 
         setupVMA();
         createSwapchain(window);
@@ -48,9 +48,12 @@ namespace deoxy::graphics {
     VulkanContext::~VulkanContext() {
         if (m_device != VK_NULL_HANDLE) vkDeviceWaitIdle(m_device);
 
-        if (m_imageAvailableSemaphore != VK_NULL_HANDLE) vkDestroySemaphore(m_device, m_imageAvailableSemaphore, nullptr);
-
-        if (m_inFlightFence != VK_NULL_HANDLE) vkDestroyFence(m_device, m_inFlightFence, nullptr);
+        if (!m_frames.empty()) {
+            for (FrameData& f : m_frames) {
+                if (f.ImageAvailableSemaphore != VK_NULL_HANDLE) vkDestroySemaphore(m_device, f.ImageAvailableSemaphore, nullptr);
+                if (f.InFlightFence != VK_NULL_HANDLE) vkDestroyFence(m_device, f.InFlightFence, nullptr);
+            }
+        }
 
         if (m_indexBuffer != VK_NULL_HANDLE) vmaDestroyBuffer(m_allocator, m_indexBuffer, m_indexAllocation);
         if (m_vertexBuffer != VK_NULL_HANDLE) vmaDestroyBuffer(m_allocator, m_vertexBuffer, m_vertexAllocation);
@@ -87,8 +90,9 @@ namespace deoxy::graphics {
             return;
         }
 
-        // Espera a GPU terminar de usar os recursos do frame anterior
-        check(vkWaitForFences(m_device, 1, &m_inFlightFence, VK_TRUE, UINT64_MAX));
+        FrameData& frame = m_frames[m_currentFrame];
+        // Espera a GPU terminar de usar os recursos do frame
+        check(vkWaitForFences(m_device, 1, &frame.InFlightFence, VK_TRUE, UINT64_MAX));
 
         uint32_t imageIndex = 0;
 
@@ -96,7 +100,7 @@ namespace deoxy::graphics {
         VkResult acquireResult = vkAcquireNextImageKHR(
             m_device, m_swapchain,
             UINT64_MAX,
-            m_imageAvailableSemaphore,
+            frame.ImageAvailableSemaphore,
             VK_NULL_HANDLE,
             &imageIndex
         );
@@ -113,16 +117,16 @@ namespace deoxy::graphics {
         const bool swapchainSuboptimal = acquireResult == VK_SUBOPTIMAL_KHR;
 
         // Só reseta depois que sabemos que vamos realmente enviar um frame
-        check(vkResetFences(m_device, 1, &m_inFlightFence));
-        check(vkResetCommandBuffer(m_commandBuffer, 0));
+        check(vkResetFences(m_device, 1, &frame.InFlightFence));
+        check(vkResetCommandBuffer(frame.CommandBuffer, 0));
 
         // Gravando o command buffer
-        recordCommandBuffer(imageIndex);
+        recordCommandBuffer(frame.CommandBuffer, imageIndex);
 
         // Enviando para a GPU
         VkSemaphoreSubmitInfo waitSemaphoreInfo {
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-            .semaphore = m_imageAvailableSemaphore,
+            .semaphore = frame.ImageAvailableSemaphore,
             .value = 0,
             .stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
             .deviceIndex = 0
@@ -130,7 +134,7 @@ namespace deoxy::graphics {
 
         VkCommandBufferSubmitInfo commandBufferInfo {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-            .commandBuffer = m_commandBuffer,
+            .commandBuffer = frame.CommandBuffer,
             .deviceMask = 1
         };
 
@@ -153,7 +157,7 @@ namespace deoxy::graphics {
             .pSignalSemaphoreInfos = &signalSemaphoreInfo
         };
 
-        check(vkQueueSubmit2(m_queue, 1, &submitInfo, m_inFlightFence));
+        check(vkQueueSubmit2(m_queue, 1, &submitInfo, frame.InFlightFence));
 
         // Presentar a imagem
         VkPresentInfoKHR presentInfo {
@@ -167,12 +171,18 @@ namespace deoxy::graphics {
 
         VkResult presentResult = vkQueuePresentKHR(m_queue, &presentInfo);
 
-        if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR || swapchainSuboptimal) {
-            recreateSwapchain();
-            return;
-        }
+        const bool mustRecreate = presentResult == VK_ERROR_OUT_OF_DATE_KHR ||
+                                  presentResult == VK_SUBOPTIMAL_KHR ||
+                                  swapchainSuboptimal;
 
-        check(presentResult);
+        if (presentResult != VK_SUCCESS &&
+            presentResult != VK_SUBOPTIMAL_KHR &&
+            presentResult != VK_ERROR_OUT_OF_DATE_KHR
+        ) check(presentResult);
+
+        m_currentFrame = (m_currentFrame + 1) % FRAMES_IN_FLIGHT;
+
+        if (mustRecreate) recreateSwapchain();
     }
 
     VKAPI_ATTR VkBool32 VKAPI_CALL VulkanContext::debugCallback(
@@ -624,17 +634,20 @@ namespace deoxy::graphics {
         check(vkCreateCommandPool(m_device, &poolCI, nullptr, &m_commandPool));
     }
 
-    void VulkanContext::createCommandBuffer() {
-        // Criando o Command Buffer
-        // TODO: Usar uma array de command buffers
+    void VulkanContext::createCommandBuffers() {
+        // Criando os Command Buffers
+        std::array<VkCommandBuffer, FRAMES_IN_FLIGHT> commandBuffers{};
+
         VkCommandBufferAllocateInfo allocInfo {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
             .commandPool = m_commandPool,
             .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            .commandBufferCount = 1
+            .commandBufferCount = static_cast<uint32_t>(commandBuffers.size())
         };
 
-        check(vkAllocateCommandBuffers(m_device, &allocInfo, &m_commandBuffer));
+        check(vkAllocateCommandBuffers(m_device, &allocInfo, commandBuffers.data()));
+
+        for (size_t i = 0; i < m_frames.size(); i++) m_frames[i].CommandBuffer = commandBuffers[i];
     }
 
     void VulkanContext::createGraphicsPipeline() {
@@ -838,7 +851,6 @@ namespace deoxy::graphics {
 
     void VulkanContext::createSyncObjects() {
         // Criando estruturas de criação para os semáforos e as cercas
-        // TODO: Essa função só usa 1 Frame in Flight, no futuro, trocar para um vetor
         VkSemaphoreCreateInfo semaphoreCI {
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
         };
@@ -848,26 +860,26 @@ namespace deoxy::graphics {
             .flags = VK_FENCE_CREATE_SIGNALED_BIT   // FENCE JÁ LIGADA! Se não: loop infinito no startup
         };
 
-        check(vkCreateSemaphore(m_device, &semaphoreCI, nullptr, &m_imageAvailableSemaphore));
+        for (FrameData& frame : m_frames) {
+            check(vkCreateSemaphore(m_device, &semaphoreCI, nullptr, &frame.ImageAvailableSemaphore));
+            check(vkCreateFence(m_device, &fenceCI, nullptr, &frame.InFlightFence));
+        }
 
         createRenderFinishedSemaphores();
-
-        // Uma fence por Frame in Flight
-        check(vkCreateFence(m_device, &fenceCI, nullptr, &m_inFlightFence));
     }
 
-    void VulkanContext::recordCommandBuffer(uint32_t imageIndex) {
+    void VulkanContext::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
         // Iniciando o command buffer
         VkCommandBufferBeginInfo beginInfo {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
             .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
         };
 
-        check(vkBeginCommandBuffer(m_commandBuffer, &beginInfo));
+        check(vkBeginCommandBuffer(commandBuffer, &beginInfo));
 
         // Prepara a imagem para receber renderização
         transitionImage(
-            m_commandBuffer, m_swapchainImages[imageIndex],
+            commandBuffer, m_swapchainImages[imageIndex],
             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             VK_PIPELINE_STAGE_2_NONE, 0,
             VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -902,9 +914,9 @@ namespace deoxy::graphics {
         };
 
         // Limpa a imagem
-        vkCmdBeginRendering(m_commandBuffer, &renderingInfo);
+        vkCmdBeginRendering(commandBuffer, &renderingInfo);
             // Bindando a pipeline
-            vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
                 // Criando o viewport
                 VkViewport viewport {
                     .x = 0.0f, .y = 0.0f,
@@ -918,25 +930,25 @@ namespace deoxy::graphics {
                     .extent = m_swapchainExtent
                 };
 
-                vkCmdSetViewport(m_commandBuffer, 0, 1, &viewport);
-                vkCmdSetScissor(m_commandBuffer, 0, 1, &scissor);
+                vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+                vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
                 VkDeviceSize vertexOffset = 0;
-                vkCmdBindVertexBuffers(m_commandBuffer, 0, 1, &m_vertexBuffer, &vertexOffset);
-                vkCmdBindIndexBuffer(m_commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+                vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_vertexBuffer, &vertexOffset);
+                vkCmdBindIndexBuffer(commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-                vkCmdDrawIndexed(m_commandBuffer, m_indexCount, 1, 0, 0, 0);
-        vkCmdEndRendering(m_commandBuffer);
+                vkCmdDrawIndexed(commandBuffer, m_indexCount, 1, 0, 0, 0);
+        vkCmdEndRendering(commandBuffer);
 
         // Prepara a imagem para aparecer na tela
         transitionImage(
-            m_commandBuffer, m_swapchainImages[imageIndex],
+            commandBuffer, m_swapchainImages[imageIndex],
             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
             VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
             VK_PIPELINE_STAGE_2_NONE, 0
         );
 
-        check(vkEndCommandBuffer(m_commandBuffer));
+        check(vkEndCommandBuffer(commandBuffer));
     }
 
     void VulkanContext::transitionImage(

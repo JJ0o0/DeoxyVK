@@ -8,6 +8,7 @@
 #include <string>
 #include <limits>
 #include <vector>
+#include <array>
 
 namespace deoxy::platform {
     class Window;
@@ -60,12 +61,12 @@ namespace deoxy::graphics {
             void createDepthResources();
 
             void createCommandPool();
-            void createCommandBuffer();
+            void createCommandBuffers();
             void createGraphicsPipeline();
             void createRenderFinishedSemaphores();
             void createSyncObjects();
 
-            void recordCommandBuffer(uint32_t imageIndex);
+            void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
             void transitionImage(
                 VkCommandBuffer commandBuffer,
                 VkImage image,
@@ -91,7 +92,7 @@ namespace deoxy::graphics {
             bool getWindowPixelSize(int& width, int& height);
 
             // VARIÁVEIS
-            static constexpr uint32_t FRAMES_IN_FLIGHT = 1;
+            static constexpr uint32_t FRAMES_IN_FLIGHT = 2;
 
             #ifndef NDEBUG
                 static constexpr bool ENABLE_VALIDATION = true;
@@ -124,12 +125,16 @@ namespace deoxy::graphics {
             VkFormat m_depthFormat = VK_FORMAT_UNDEFINED;
 
             VkCommandPool m_commandPool = VK_NULL_HANDLE;
-            VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
 
-            VkSemaphore m_imageAvailableSemaphore = VK_NULL_HANDLE;
+            struct FrameData {
+                VkCommandBuffer CommandBuffer = VK_NULL_HANDLE;
+                VkSemaphore ImageAvailableSemaphore = VK_NULL_HANDLE;
+                VkFence InFlightFence = VK_NULL_HANDLE;
+            };
+
+            uint32_t m_currentFrame = 0;
+            std::array<FrameData, FRAMES_IN_FLIGHT> m_frames{};
             std::vector<VkSemaphore> m_renderFinishedSemaphore{};
-
-            VkFence m_inFlightFence;
 
             VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
             VkPipeline m_graphicsPipeline = VK_NULL_HANDLE;
