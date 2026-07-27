@@ -2,12 +2,18 @@
 
 #include <deoxy/platform/window.hpp>
 #include <deoxy/platform/logger.hpp>
+#include <deoxy/graphics/vertex.hpp>
+
 #include <SDL3/SDL_vulkan.h>
 
 #include <string_view>
 #include <stdexcept>
+#include <iterator>
+#include <fstream>
+#include <cstddef>
 #include <format>
 #include <vector>
+#include <array>
 
 namespace deoxy::graphics {
     VulkanContext::VulkanContext(platform::Window& window) {
@@ -32,7 +38,7 @@ namespace deoxy::graphics {
         createSwapchain(window);
         createSwapchainImageViews();
         createDepthResources();
-
+        createGraphicsPipeline();
         createSyncObjects();
     }
 
@@ -51,6 +57,8 @@ namespace deoxy::graphics {
 
         if (m_inFlightFence != VK_NULL_HANDLE) vkDestroyFence(m_device, m_inFlightFence, nullptr);
 
+        if (m_graphicsPipeline != VK_NULL_HANDLE) vkDestroyPipeline(m_device, m_graphicsPipeline, nullptr);
+        if (m_pipelineLayout != VK_NULL_HANDLE) vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
         if (m_commandPool != VK_NULL_HANDLE) vkDestroyCommandPool(m_device, m_commandPool, nullptr);
 
         if (m_depthImageView != VK_NULL_HANDLE) vkDestroyImageView(m_device, m_depthImageView, nullptr);
@@ -559,6 +567,193 @@ namespace deoxy::graphics {
         check(vkAllocateCommandBuffers(m_device, &allocInfo, &m_commandBuffer));
     }
 
+    void VulkanContext::createGraphicsPipeline() {
+        // Lendo e criando os shaders
+        const auto vertexCode = readShaderFile("shaders/basic.vert.spv");
+        const auto fragmentCode = readShaderFile("shaders/basic.frag.spv");
+
+        VkShaderModule vertexModule = createShaderModule(vertexCode);
+        VkShaderModule fragmentModule = createShaderModule(fragmentCode);
+
+        // Criando os shaders na pipeline
+        VkPipelineShaderStageCreateInfo vertexStage {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_VERTEX_BIT,
+            .module = vertexModule,
+            .pName = "main"
+        };
+
+        VkPipelineShaderStageCreateInfo fragmentStage {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .module = fragmentModule,
+            .pName = "main"
+        };
+
+        VkPipelineShaderStageCreateInfo shaderStages[] { vertexStage, fragmentStage };
+
+        // Definindo como o Vulkan avança pelos elementos do vertex buffer
+        VkVertexInputBindingDescription bindingDescription {
+            .binding = 0,
+            .stride = sizeof(Vertex),
+            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+        };
+
+        // Define o que cada parte de Vertex é no shader
+        std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions {
+            VkVertexInputAttributeDescription {
+                .location = 0,
+                .binding = 0,
+                .format = VK_FORMAT_R32G32B32_SFLOAT,
+                .offset = offsetof(Vertex, Position)
+            },
+            VkVertexInputAttributeDescription {
+                .location = 1,
+                .binding = 0,
+                .format = VK_FORMAT_R32G32B32_SFLOAT,
+                .offset = offsetof(Vertex, Color)
+            },
+        };
+
+        // Define como andar pelo buffer e como interpretar cada atributo
+        VkPipelineVertexInputStateCreateInfo vertexInputCI {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+            .vertexBindingDescriptionCount = 1,
+            .pVertexBindingDescriptions = &bindingDescription,
+            .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size()),
+            .pVertexAttributeDescriptions = attributeDescriptions.data()
+        };
+
+        // Define como três vértices forma um triângulo
+        VkPipelineInputAssemblyStateCreateInfo inputAssemblyCI {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+            .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+            .primitiveRestartEnable = VK_FALSE
+        };
+
+        // Criando o viewport
+        VkPipelineViewportStateCreateInfo viewportCI {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+            .viewportCount = 1,
+            .pViewports = nullptr,
+            .scissorCount = 1,
+            .pScissors = nullptr
+        };
+
+        // Definindo estados dinâmicos
+        const std::array<VkDynamicState, 2> dynamicStates { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+        VkPipelineDynamicStateCreateInfo dynamicStateCI {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+            .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
+            .pDynamicStates = dynamicStates.data()
+        };
+
+        // Definindo informações sobre a rasterização
+        VkPipelineRasterizationStateCreateInfo rasterizationCI {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+            .depthClampEnable = VK_FALSE,
+            .rasterizerDiscardEnable = VK_FALSE,
+            .polygonMode = VK_POLYGON_MODE_FILL,
+            .cullMode = VK_CULL_MODE_NONE,
+            .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+            .depthBiasEnable = VK_FALSE,
+            .lineWidth = 1.0f
+        };
+
+        // Definindo configurações do MSAA
+        VkPipelineMultisampleStateCreateInfo multisampleCI {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+            .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+            .sampleShadingEnable = VK_FALSE,
+            .minSampleShading = 1.0f,
+            .pSampleMask = nullptr,
+            .alphaToCoverageEnable = VK_FALSE,
+            .alphaToOneEnable = VK_FALSE
+        };
+
+        // Definindo configurações do Depth Test
+        VkPipelineDepthStencilStateCreateInfo depthStencilCI {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            .depthTestEnable = VK_FALSE,
+            .depthWriteEnable = VK_FALSE,
+            .depthCompareOp = VK_COMPARE_OP_LESS,
+            .depthBoundsTestEnable = VK_FALSE,
+            .stencilTestEnable = VK_FALSE
+        };
+
+        // Configurando color blending
+        VkPipelineColorBlendAttachmentState colorBlendAttachment {
+            .blendEnable = VK_FALSE,
+            .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
+            .dstColorBlendFactor = VK_BLEND_FACTOR_ZERO,
+            .colorBlendOp = VK_BLEND_OP_ADD,
+            .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+            .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
+            .alphaBlendOp = VK_BLEND_OP_ADD,
+            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
+                              VK_COLOR_COMPONENT_G_BIT |
+                              VK_COLOR_COMPONENT_B_BIT |
+                              VK_COLOR_COMPONENT_A_BIT
+        };
+
+        VkPipelineColorBlendStateCreateInfo colorBlendCI {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+            .logicOpEnable = VK_FALSE,
+            .logicOp = VK_LOGIC_OP_COPY,
+            .attachmentCount = 1,
+            .pAttachments = &colorBlendAttachment
+        };
+
+        // Criando o layout da pipeline
+        VkPipelineLayoutCreateInfo layoutCI {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .setLayoutCount = 0,
+            .pSetLayouts = nullptr,
+            .pushConstantRangeCount = 0,
+            .pPushConstantRanges = nullptr
+        };
+
+        check(vkCreatePipelineLayout(m_device, &layoutCI, nullptr, &m_pipelineLayout));
+
+        // Informando o formato usado pelo dynamic rendering
+        VkPipelineRenderingCreateInfo renderingCI {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+            .viewMask = 0,
+            .colorAttachmentCount = 1,
+            .pColorAttachmentFormats = &m_swapchainFormat,
+            .depthAttachmentFormat = VK_FORMAT_UNDEFINED,
+            .stencilAttachmentFormat = VK_FORMAT_UNDEFINED
+        };
+
+        // Juntando TOOOODOS os estados e criando o pipeline
+        VkGraphicsPipelineCreateInfo pipelineCI {
+            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            .pNext = &renderingCI,
+            .stageCount = static_cast<uint32_t>(std::size(shaderStages)),
+            .pStages = shaderStages,
+            .pVertexInputState = &vertexInputCI,
+            .pInputAssemblyState = &inputAssemblyCI,
+            .pTessellationState = nullptr,
+            .pViewportState = &viewportCI,
+            .pRasterizationState = &rasterizationCI,
+            .pMultisampleState = &multisampleCI,
+            .pDepthStencilState = &depthStencilCI,
+            .pColorBlendState = &colorBlendCI,
+            .pDynamicState = &dynamicStateCI,
+            .layout = m_pipelineLayout,
+            .renderPass = VK_NULL_HANDLE,
+            .subpass = 0,
+            .basePipelineHandle = VK_NULL_HANDLE,
+            .basePipelineIndex = -1
+        };
+
+        check(vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineCI, nullptr, &m_graphicsPipeline));
+
+        // Limpando
+        vkDestroyShaderModule(m_device, fragmentModule, nullptr);
+        vkDestroyShaderModule(m_device, vertexModule, nullptr);
+    }
+
     void VulkanContext::createSyncObjects() {
         // Criando estruturas de criação para os semáforos e as cercas
         // TODO: Essa função só usa 1 Frame in Flight, no futuro, trocar para um vetor
@@ -631,9 +826,23 @@ namespace deoxy::graphics {
 
         // Limpa a imagem
         vkCmdBeginRendering(m_commandBuffer, &renderingInfo);
+            // Bindando a pipeline
+            vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+                // Criando o viewport
+                VkViewport viewport {
+                    .x = 0.0f, .y = 0.0f,
+                    .width = static_cast<float>(m_swapchainExtent.width), .height = static_cast<float>(m_swapchainExtent.height),
+                    .minDepth = 0.0f, .maxDepth = 1.0f
+                };
 
-            // TODO: Pipeline e draw aqui!
+                // Criando o scissor
+                VkRect2D scissor {
+                    .offset = {0, 0},
+                    .extent = m_swapchainExtent
+                };
 
+                vkCmdSetViewport(m_commandBuffer, 0, 1, &viewport);
+                vkCmdSetScissor(m_commandBuffer, 0, 1, &scissor);
         vkCmdEndRendering(m_commandBuffer);
 
         // Prepara a imagem para aparecer na tela
@@ -684,5 +893,42 @@ namespace deoxy::graphics {
         };
 
         vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+    }
+
+    VkShaderModule VulkanContext::createShaderModule(const std::vector<uint32_t>& code) {
+        // Criando módulo do shader
+        VkShaderModuleCreateInfo moduleCI {
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .codeSize = code.size() * sizeof(uint32_t),
+            .pCode = code.data()
+        };
+
+        VkShaderModule shaderModule = VK_NULL_HANDLE;
+        check(vkCreateShaderModule(m_device, &moduleCI, nullptr, &shaderModule));
+
+        return shaderModule;
+    }
+
+    std::vector<uint32_t> VulkanContext::readShaderFile(const std::filesystem::path& path) {
+        // FUNÇÃO DE LER ARQUIVO
+        std::ifstream file(path, std::ios::ate | std::ios::binary);
+        if (!file) {
+            throw std::runtime_error(std::format("Couldn't open shader at '{}'", path.string()));
+        }
+
+        const std::streamsize fileSize = file.tellg();
+        if (fileSize <= 0 || fileSize % 4 != 0) {
+            throw std::runtime_error(std::format("Invalid SPIR-V file at '{}'", path.string()));
+        }
+
+        std::vector<uint32_t> code(static_cast<size_t>(fileSize) / sizeof(uint32_t));
+
+        file.seekg(0);
+        file.read(reinterpret_cast<char*>(code.data()), fileSize);
+        if (!file) {
+            throw std::runtime_error(std::format("Couldn't read shader at '{}'", path.string()));
+        }
+
+        return code;
     }
 }

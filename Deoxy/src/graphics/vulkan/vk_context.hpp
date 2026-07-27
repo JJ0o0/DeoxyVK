@@ -3,6 +3,7 @@
 #include <volk.h>
 #include <vk_mem_alloc.h>
 
+#include <filesystem>
 #include <cstdint>
 #include <string>
 #include <limits>
@@ -53,6 +54,7 @@ namespace deoxy::graphics {
 
             void createCommandPool();
             void createCommandBuffer();
+            void createGraphicsPipeline();
             void createSyncObjects();
 
             void recordCommandBuffer(uint32_t imageIndex);
@@ -67,8 +69,11 @@ namespace deoxy::graphics {
                 VkAccessFlags2 dstAccess
             );
 
+            VkShaderModule createShaderModule(const std::vector<uint32_t>& code);
+            static std::vector<uint32_t> readShaderFile(const std::filesystem::path& path);
+
             // VARIÁVEIS
-            static constexpr std::uint32_t FRAMES_IN_FLIGHT = 1;
+            static constexpr uint32_t FRAMES_IN_FLIGHT = 1;
 
             #ifndef NDEBUG
                 static constexpr bool ENABLE_VALIDATION = true;
@@ -107,5 +112,8 @@ namespace deoxy::graphics {
             std::vector<VkSemaphore> m_renderFinishedSemaphore{};
 
             VkFence m_inFlightFence;
+
+            VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
+            VkPipeline m_graphicsPipeline = VK_NULL_HANDLE;
     };
 }
