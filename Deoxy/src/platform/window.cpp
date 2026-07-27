@@ -20,7 +20,7 @@ namespace deoxy::platform {
         m_impl->Handle = SDL_CreateWindow(
             m_properties.Title.c_str(),
             static_cast<int>(m_properties.Width), static_cast<int>(m_properties.Height),
-            SDL_WINDOW_VULKAN
+            SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE
         );
 
         if (!m_impl->Handle) {

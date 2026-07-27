@@ -7,16 +7,18 @@
 #include <SDL3/SDL_vulkan.h>
 
 #include <string_view>
+#include <algorithm>
 #include <stdexcept>
 #include <iterator>
 #include <fstream>
 #include <cstddef>
+#include <limits>
 #include <format>
 #include <vector>
 #include <array>
 
 namespace deoxy::graphics {
-    VulkanContext::VulkanContext(platform::Window& window) {
+    VulkanContext::VulkanContext(platform::Window& window) : m_window(&window) {
         check(volkInitialize());
 
         createInstance();
@@ -48,14 +50,6 @@ namespace deoxy::graphics {
 
         if (m_imageAvailableSemaphore != VK_NULL_HANDLE) vkDestroySemaphore(m_device, m_imageAvailableSemaphore, nullptr);
 
-        if (!m_renderFinishedSemaphore.empty()) {
-            for (VkSemaphore s : m_renderFinishedSemaphore) {
-                if (s != VK_NULL_HANDLE) vkDestroySemaphore(m_device, s, nullptr);
-            }
-
-            m_renderFinishedSemaphore.clear();
-        }
-
         if (m_inFlightFence != VK_NULL_HANDLE) vkDestroyFence(m_device, m_inFlightFence, nullptr);
 
         if (m_indexBuffer != VK_NULL_HANDLE) vmaDestroyBuffer(m_allocator, m_indexBuffer, m_indexAllocation);
@@ -63,20 +57,11 @@ namespace deoxy::graphics {
 
         if (m_graphicsPipeline != VK_NULL_HANDLE) vkDestroyPipeline(m_device, m_graphicsPipeline, nullptr);
         if (m_pipelineLayout != VK_NULL_HANDLE) vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
+
+        cleanupSwapchain();
+
         if (m_commandPool != VK_NULL_HANDLE) vkDestroyCommandPool(m_device, m_commandPool, nullptr);
 
-        if (m_depthImageView != VK_NULL_HANDLE) vkDestroyImageView(m_device, m_depthImageView, nullptr);
-        if (m_depthImage != VK_NULL_HANDLE) vmaDestroyImage(m_allocator, m_depthImage, m_depthAllocation);
-
-        if (!m_swapchainImageViews.empty()) {
-            for (VkImageView iv : m_swapchainImageViews) {
-                if (iv != VK_NULL_HANDLE) vkDestroyImageView(m_device, iv, nullptr);
-            }
-
-            m_swapchainImageViews.clear();
-        }
-
-        if (m_swapchain != VK_NULL_HANDLE) vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
         if (m_allocator != nullptr) vmaDestroyAllocator(m_allocator);
         if (m_device != VK_NULL_HANDLE) vkDestroyDevice(m_device, nullptr);
         if (m_surface != VK_NULL_HANDLE) vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
@@ -85,6 +70,23 @@ namespace deoxy::graphics {
     }
 
     void VulkanContext::DrawFrame() {
+        // Detectando o resize para a reconstrução da swapchain
+        int windowWidth = 0;
+        int windowHeight = 0;
+
+        if (!getWindowPixelSize(windowWidth, windowHeight)) return;
+
+        VkSurfaceCapabilitiesKHR surfaceCaps{};
+        check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &surfaceCaps));
+
+        const VkExtent2D desiredExtent = chooseSwapchainExtent(surfaceCaps);
+        const bool extentChanged = desiredExtent.width != m_swapchainExtent.width || desiredExtent.height != m_swapchainExtent.height;
+
+        if (extentChanged) {
+            recreateSwapchain();
+            return;
+        }
+
         // Espera a GPU terminar de usar os recursos do frame anterior
         check(vkWaitForFences(m_device, 1, &m_inFlightFence, VK_TRUE, UINT64_MAX));
 
@@ -100,13 +102,15 @@ namespace deoxy::graphics {
         );
 
         if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR) {
-            // TODO: recreateSwapchain()
+            recreateSwapchain();
             return;
         }
 
         if (acquireResult != VK_SUCCESS && acquireResult != VK_SUBOPTIMAL_KHR) {
             check(acquireResult);
         }
+
+        const bool swapchainSuboptimal = acquireResult == VK_SUBOPTIMAL_KHR;
 
         // Só reseta depois que sabemos que vamos realmente enviar um frame
         check(vkResetFences(m_device, 1, &m_inFlightFence));
@@ -163,8 +167,8 @@ namespace deoxy::graphics {
 
         VkResult presentResult = vkQueuePresentKHR(m_queue, &presentInfo);
 
-        if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR) {
-            // TODO: recreateSwapchain()
+        if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR || swapchainSuboptimal) {
+            recreateSwapchain();
             return;
         }
 
@@ -428,13 +432,7 @@ namespace deoxy::graphics {
         check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &surfaceCaps));
 
         // Pegando o extent correto do swapchain (Wayland tem um valor especial pra isso)
-        m_swapchainExtent = surfaceCaps.currentExtent;
-        if (surfaceCaps.currentExtent.width == 0xFFFFFFFF) {
-            m_swapchainExtent = {
-                .width = window.m_properties.Width,
-                .height = window.m_properties.Height
-            };
-        }
+        m_swapchainExtent = chooseSwapchainExtent(surfaceCaps);
 
         // Criando a Swapchain
         m_swapchainFormat = VK_FORMAT_B8G8R8A8_SRGB;
@@ -490,6 +488,74 @@ namespace deoxy::graphics {
 
             check(vkCreateImageView(m_device, &viewCI, nullptr, &m_swapchainImageViews[i]));
         }
+    }
+
+    void VulkanContext::recreateSwapchain() {
+        int width = 0;
+        int height = 0;
+
+        if (!getWindowPixelSize(width, height)) return;
+
+        check(vkDeviceWaitIdle(m_device));
+
+        cleanupSwapchain();
+
+        createSwapchain(*m_window);
+        createSwapchainImageViews();
+        createDepthResources();
+        createRenderFinishedSemaphores();
+
+        #ifndef NDEBUG
+            platform::Logger::Info("Recreated swapchain ({}x{})", m_swapchainExtent.width, m_swapchainExtent.height);
+        #endif
+    }
+
+    void VulkanContext::cleanupSwapchain() {
+        if (!m_renderFinishedSemaphore.empty()) {
+            for (VkSemaphore s : m_renderFinishedSemaphore) {
+                if (s != VK_NULL_HANDLE) vkDestroySemaphore(m_device, s, nullptr);
+            }
+
+            m_renderFinishedSemaphore.clear();
+        }
+
+        if (m_depthImageView != VK_NULL_HANDLE) vkDestroyImageView(m_device, m_depthImageView, nullptr);
+        if (m_depthImage != VK_NULL_HANDLE) vmaDestroyImage(m_allocator, m_depthImage, m_depthAllocation);
+
+        if (!m_swapchainImageViews.empty()) {
+            for (VkImageView iv : m_swapchainImageViews) {
+                if (iv != VK_NULL_HANDLE) vkDestroyImageView(m_device, iv, nullptr);
+            }
+
+            m_swapchainImageViews.clear();
+        }
+
+        if (m_swapchain != VK_NULL_HANDLE) vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+    }
+
+    // Pegar o extent ideal para o nosso swapchain atual
+    VkExtent2D VulkanContext::chooseSwapchainExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
+        if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+            return capabilities.currentExtent;
+        }
+
+        int width = 0;
+        int height = 0;
+
+        getWindowPixelSize(width, height);
+
+        return {
+            .width = std::clamp(
+                static_cast<uint32_t>(width),
+                capabilities.minImageExtent.width,
+                capabilities.maxImageExtent.width
+            ),
+            .height = std::clamp(
+                static_cast<uint32_t>(height),
+                capabilities.minImageExtent.height,
+                capabilities.maxImageExtent.height
+            )
+        };
     }
 
     void VulkanContext::createDepthResources() {
@@ -758,6 +824,18 @@ namespace deoxy::graphics {
         vkDestroyShaderModule(m_device, vertexModule, nullptr);
     }
 
+    // Criando os semáforos de render finished
+    void VulkanContext::createRenderFinishedSemaphores() {
+        VkSemaphoreCreateInfo semaphoreCI {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
+        };
+
+        m_renderFinishedSemaphore.resize(m_swapchainImages.size(), VK_NULL_HANDLE);
+        for (VkSemaphore& semaphore : m_renderFinishedSemaphore) {
+            check(vkCreateSemaphore(m_device, &semaphoreCI, nullptr, &semaphore));
+        }
+    }
+
     void VulkanContext::createSyncObjects() {
         // Criando estruturas de criação para os semáforos e as cercas
         // TODO: Essa função só usa 1 Frame in Flight, no futuro, trocar para um vetor
@@ -772,12 +850,7 @@ namespace deoxy::graphics {
 
         check(vkCreateSemaphore(m_device, &semaphoreCI, nullptr, &m_imageAvailableSemaphore));
 
-        // Um por imagem da swapchain
-        m_renderFinishedSemaphore.resize(m_swapchainImages.size(), VK_NULL_HANDLE);
-
-        for (VkSemaphore& semaphore : m_renderFinishedSemaphore) {
-            check(vkCreateSemaphore(m_device, &semaphoreCI, nullptr, &semaphore));
-        }
+        createRenderFinishedSemaphores();
 
         // Uma fence por Frame in Flight
         check(vkCreateFence(m_device, &fenceCI, nullptr, &m_inFlightFence));
@@ -1020,5 +1093,15 @@ namespace deoxy::graphics {
         };
 
         check(vmaCreateBuffer(m_allocator, &bufferCI, &allocationCI, &buffer, &allocation, nullptr));
+    }
+
+    // Retorna a área cliente em pixels
+    bool VulkanContext::getWindowPixelSize(int& width, int& height) {
+        check(SDL_GetWindowSizeInPixels(
+            m_window->GetHandle(),
+            &width, &height
+        ), std::format("Couldn't get window pixel size: {}", SDL_GetError()));
+
+        return width > 0 && height > 0;
     }
 }

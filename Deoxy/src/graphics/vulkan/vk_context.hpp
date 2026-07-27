@@ -24,6 +24,9 @@ namespace deoxy::graphics {
 
             void DrawFrame();
         private:
+            // REFERÊNCIAS
+            platform::Window* m_window = nullptr;
+
             // FUNÇÕES
             static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
                 VkDebugUtilsMessageSeverityFlagBitsEXT severity,
@@ -50,11 +53,16 @@ namespace deoxy::graphics {
 
             void createSwapchain(platform::Window& window);
             void createSwapchainImageViews();
+            void recreateSwapchain();
+            void cleanupSwapchain();
+            VkExtent2D chooseSwapchainExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+
             void createDepthResources();
 
             void createCommandPool();
             void createCommandBuffer();
             void createGraphicsPipeline();
+            void createRenderFinishedSemaphores();
             void createSyncObjects();
 
             void recordCommandBuffer(uint32_t imageIndex);
@@ -79,6 +87,8 @@ namespace deoxy::graphics {
                 VkBuffer& buffer,
                 VmaAllocation& allocation
             );
+
+            bool getWindowPixelSize(int& width, int& height);
 
             // VARIÁVEIS
             static constexpr uint32_t FRAMES_IN_FLIGHT = 1;
