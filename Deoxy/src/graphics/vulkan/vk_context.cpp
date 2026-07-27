@@ -216,18 +216,6 @@ namespace deoxy::graphics {
         }
     }
 
-    void VulkanContext::checkSwapchain(VkResult result) {
-        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-            // TODO: Reconstruir a swapchain
-
-            return;
-        }
-
-        if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-            check(result);
-        }
-    }
-
     bool VulkanContext::validationLayersAvailable() {
         // Pega as layers
         uint32_t layerCount = 0;
@@ -1028,6 +1016,7 @@ namespace deoxy::graphics {
     }
 
     void VulkanContext::createGeometryBuffers() {
+        // Cria as informações
         const std::array<Vertex, 3> vertices {
             Vertex {
                 .Position = { 0.0f, -0.5f, 0.0f },
@@ -1047,48 +1036,89 @@ namespace deoxy::graphics {
             0, 1, 2
         };
 
-        const VkDeviceSize vertexBufferSize =
-            sizeof(vertices);
-
-        const VkDeviceSize indexBufferSize =
-            sizeof(indices);
-
+        // Cria o staging buffer para o vertex
+        const VkDeviceSize vertexBufferSize = sizeof(vertices);
+        VkBuffer stagingVertexBuffer = VK_NULL_HANDLE;
+        VmaAllocation stagingVertexAllocation = nullptr;
         createBuffer(
             vertexBufferSize,
-            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-            m_vertexBuffer,
-            m_vertexAllocation
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            stagingVertexBuffer,
+            stagingVertexAllocation
         );
 
+        // Copia os dados da CPU
         check(vmaCopyMemoryToAllocation(
             m_allocator,
             vertices.data(),
-            m_vertexAllocation,
+            stagingVertexAllocation,
             0,
             vertexBufferSize
         ));
 
+        // Cria o VBO
         createBuffer(
-            indexBufferSize,
-            VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-            m_indexBuffer,
-            m_indexAllocation
+            vertexBufferSize,
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0,
+            m_vertexBuffer,
+            m_vertexAllocation
         );
 
+        // Copia staging para a GPU
+        copyBuffer(stagingVertexBuffer, m_vertexBuffer, vertexBufferSize);
+
+        // Destrói o staging
+        vmaDestroyBuffer(m_allocator, stagingVertexBuffer, stagingVertexAllocation);
+
+        // Cria o staging buffer para o index
+        const VkDeviceSize indexBufferSize = sizeof(indices);
+        VkBuffer stagingIndexBuffer = VK_NULL_HANDLE;
+        VmaAllocation stagingIndexAllocation = nullptr;
+        createBuffer(
+            indexBufferSize,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            stagingIndexBuffer,
+            stagingIndexAllocation
+        );
+
+        // Copia os dados da CPU
         check(vmaCopyMemoryToAllocation(
             m_allocator,
             indices.data(),
-            m_indexAllocation,
+            stagingIndexAllocation,
             0,
             indexBufferSize
         ));
 
+        // Cria o EBO
+        createBuffer(
+            indexBufferSize,
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+            VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0,
+            m_indexBuffer,
+            m_indexAllocation
+        );
+
+        // Copia staging para a GPU
+        copyBuffer(stagingIndexBuffer, m_indexBuffer, indexBufferSize);
+
+        // Destrói o staging
+        vmaDestroyBuffer(m_allocator, stagingIndexBuffer, stagingIndexAllocation);
+
         m_indexCount = static_cast<uint32_t>(indices.size());
     }
 
+    // Helper para criar buffers
     void VulkanContext::createBuffer(
         VkDeviceSize size,
         VkBufferUsageFlags usage,
+        VmaMemoryUsage memoryUsage,
+        VmaAllocationCreateFlags allocationFlags,
         VkBuffer& buffer,
         VmaAllocation& allocation
     ) {
@@ -1100,11 +1130,56 @@ namespace deoxy::graphics {
         };
 
         VmaAllocationCreateInfo allocationCI {
-            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
-            .usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST
+            .flags = allocationFlags,
+            .usage = memoryUsage
         };
 
         check(vmaCreateBuffer(m_allocator, &bufferCI, &allocationCI, &buffer, &allocation, nullptr));
+    }
+
+    // Helper para copiar buffers
+    void VulkanContext::copyBuffer(VkBuffer src, VkBuffer dest, VkDeviceSize size) {
+        VkCommandBufferAllocateInfo allocInfo {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .commandPool = m_commandPool,
+            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = 1
+        };
+
+        VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
+        check(vkAllocateCommandBuffers(m_device, &allocInfo, &commandBuffer));
+
+        VkCommandBufferBeginInfo beginInfo {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+        };
+
+        check(vkBeginCommandBuffer(commandBuffer, &beginInfo));
+            VkBufferCopy copyRegion {
+                .srcOffset = 0,
+                .dstOffset = 0,
+                .size = size
+            };
+
+            vkCmdCopyBuffer(commandBuffer, src, dest, 1, &copyRegion);
+        check(vkEndCommandBuffer(commandBuffer));
+
+        VkCommandBufferSubmitInfo commandBufferInfo {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+            .commandBuffer = commandBuffer,
+            .deviceMask = 1
+        };
+
+        VkSubmitInfo2 submitInfo {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+            .commandBufferInfoCount = 1,
+            .pCommandBufferInfos = &commandBufferInfo
+        };
+
+        check(vkQueueSubmit2(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
+        check(vkQueueWaitIdle(m_queue));
+
+        vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
     }
 
     // Retorna a área cliente em pixels

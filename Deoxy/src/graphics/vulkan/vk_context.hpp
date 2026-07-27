@@ -38,7 +38,6 @@ namespace deoxy::graphics {
 
             void check(bool result, const std::string& errorMessage);
             void check(VkResult result);
-            void checkSwapchain(VkResult result);
 
             bool validationLayersAvailable();
 
@@ -85,9 +84,12 @@ namespace deoxy::graphics {
             void createBuffer(
                 VkDeviceSize size,
                 VkBufferUsageFlags usage,
+                VmaMemoryUsage memoryUsage,
+                VmaAllocationCreateFlags allocationFlags,
                 VkBuffer& buffer,
                 VmaAllocation& allocation
             );
+            void copyBuffer(VkBuffer src, VkBuffer dest, VkDeviceSize size);
 
             bool getWindowPixelSize(int& width, int& height);
 
