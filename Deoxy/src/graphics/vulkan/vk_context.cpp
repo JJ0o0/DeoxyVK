@@ -39,6 +39,7 @@ namespace deoxy::graphics {
         createSwapchainImageViews();
         createDepthResources();
         createGraphicsPipeline();
+        createGeometryBuffers();
         createSyncObjects();
     }
 
@@ -56,6 +57,9 @@ namespace deoxy::graphics {
         }
 
         if (m_inFlightFence != VK_NULL_HANDLE) vkDestroyFence(m_device, m_inFlightFence, nullptr);
+
+        if (m_indexBuffer != VK_NULL_HANDLE) vmaDestroyBuffer(m_allocator, m_indexBuffer, m_indexAllocation);
+        if (m_vertexBuffer != VK_NULL_HANDLE) vmaDestroyBuffer(m_allocator, m_vertexBuffer, m_vertexAllocation);
 
         if (m_graphicsPipeline != VK_NULL_HANDLE) vkDestroyPipeline(m_device, m_graphicsPipeline, nullptr);
         if (m_pipelineLayout != VK_NULL_HANDLE) vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
@@ -843,6 +847,12 @@ namespace deoxy::graphics {
 
                 vkCmdSetViewport(m_commandBuffer, 0, 1, &viewport);
                 vkCmdSetScissor(m_commandBuffer, 0, 1, &scissor);
+
+                VkDeviceSize vertexOffset = 0;
+                vkCmdBindVertexBuffers(m_commandBuffer, 0, 1, &m_vertexBuffer, &vertexOffset);
+                vkCmdBindIndexBuffer(m_commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+                vkCmdDrawIndexed(m_commandBuffer, m_indexCount, 1, 0, 0, 0);
         vkCmdEndRendering(m_commandBuffer);
 
         // Prepara a imagem para aparecer na tela
@@ -930,5 +940,85 @@ namespace deoxy::graphics {
         }
 
         return code;
+    }
+
+    void VulkanContext::createGeometryBuffers() {
+        const std::array<Vertex, 3> vertices {
+            Vertex {
+                .Position = { 0.0f, -0.5f, 0.0f },
+                .Color = { 1.0f, 0.0f, 0.0f }
+            },
+            Vertex {
+                .Position = { 0.5f, 0.5f, 0.0f },
+                .Color = { 0.0f, 1.0f, 0.0f }
+            },
+            Vertex {
+                .Position = { -0.5f, 0.5f, 0.0f },
+                .Color = { 0.0f, 0.0f, 1.0f }
+            }
+        };
+
+        const std::array<uint32_t, 3> indices {
+            0, 1, 2
+        };
+
+        const VkDeviceSize vertexBufferSize =
+            sizeof(vertices);
+
+        const VkDeviceSize indexBufferSize =
+            sizeof(indices);
+
+        createBuffer(
+            vertexBufferSize,
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            m_vertexBuffer,
+            m_vertexAllocation
+        );
+
+        check(vmaCopyMemoryToAllocation(
+            m_allocator,
+            vertices.data(),
+            m_vertexAllocation,
+            0,
+            vertexBufferSize
+        ));
+
+        createBuffer(
+            indexBufferSize,
+            VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+            m_indexBuffer,
+            m_indexAllocation
+        );
+
+        check(vmaCopyMemoryToAllocation(
+            m_allocator,
+            indices.data(),
+            m_indexAllocation,
+            0,
+            indexBufferSize
+        ));
+
+        m_indexCount = static_cast<uint32_t>(indices.size());
+    }
+
+    void VulkanContext::createBuffer(
+        VkDeviceSize size,
+        VkBufferUsageFlags usage,
+        VkBuffer& buffer,
+        VmaAllocation& allocation
+    ) {
+        VkBufferCreateInfo bufferCI {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .size = size,
+            .usage = usage,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE
+        };
+
+        VmaAllocationCreateInfo allocationCI {
+            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            .usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST
+        };
+
+        check(vmaCreateBuffer(m_allocator, &bufferCI, &allocationCI, &buffer, &allocation, nullptr));
     }
 }

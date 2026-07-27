@@ -72,6 +72,14 @@ namespace deoxy::graphics {
             VkShaderModule createShaderModule(const std::vector<uint32_t>& code);
             static std::vector<uint32_t> readShaderFile(const std::filesystem::path& path);
 
+            void createGeometryBuffers();
+            void createBuffer(
+                VkDeviceSize size,
+                VkBufferUsageFlags usage,
+                VkBuffer& buffer,
+                VmaAllocation& allocation
+            );
+
             // VARIÁVEIS
             static constexpr uint32_t FRAMES_IN_FLIGHT = 1;
 
@@ -115,5 +123,13 @@ namespace deoxy::graphics {
 
             VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
             VkPipeline m_graphicsPipeline = VK_NULL_HANDLE;
+
+            VkBuffer m_vertexBuffer = VK_NULL_HANDLE;
+            VmaAllocation m_vertexAllocation = nullptr;
+
+            VkBuffer m_indexBuffer = VK_NULL_HANDLE;
+            VmaAllocation m_indexAllocation = nullptr;
+
+            uint32_t m_indexCount = 0;
     };
 }
