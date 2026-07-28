@@ -23,5 +23,6 @@ deoxy_setup_dependencies()
 add_subdirectory(Deoxy)
 
 if(DEOXY_BUILD_SANDBOX)
+    include(shader_compilation)
     add_subdirectory(Sandbox)
 endif()
