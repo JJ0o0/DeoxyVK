@@ -4,7 +4,7 @@ SandboxApplication::SandboxApplication()
     : Application({
         .Title = "DeoxyVK Sandbox",
         .Width = 800,
-        .Height = 600
+        .Height = 600,
      }) { }
 
 void SandboxApplication::OnStart() {

@@ -1,14 +1,19 @@
 #pragma once
 
+#include "components/vk_allocator.hpp"
+#include "components/vk_command_pool.hpp"
+#include "components/vk_device.hpp"
+#include "components/vk_frame.hpp"
+#include "components/vk_instance.hpp"
+#include "components/vk_pipeline.hpp"
+#include "components/vk_surface.hpp"
+#include "components/vk_swapchain.hpp"
+
 #include <volk.h>
 #include <vk_mem_alloc.h>
 
-#include <filesystem>
-#include <cstdint>
-#include <string>
-#include <limits>
-#include <vector>
 #include <array>
+#include <cstdint>
 
 namespace deoxy::platform {
     class Window;
@@ -25,45 +30,7 @@ namespace deoxy::graphics {
 
             void DrawFrame();
         private:
-            // REFERÊNCIAS
-            platform::Window* m_window = nullptr;
-
-            // FUNÇÕES
-            static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-                VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-                VkDebugUtilsMessageTypeFlagsEXT type,
-                const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
-                void* userData
-            );
-
-            void check(bool result, const std::string& errorMessage);
-            void check(VkResult result);
-
-            bool validationLayersAvailable();
-
-            void createInstance();
-            void setupDebugMessenger();
-            void createSurface(platform::Window& window);
-
-            void selectPhysicalDevice();
-            void findQueueFamilies();
-            void createDevice();
-
-            void setupVMA();
-
-            void createSwapchain(platform::Window& window);
-            void createSwapchainImageViews();
-            void recreateSwapchain();
-            void cleanupSwapchain();
-            VkExtent2D chooseSwapchainExtent(const VkSurfaceCapabilitiesKHR& capabilities);
-
-            void createDepthResources();
-
-            void createCommandPool();
-            void createCommandBuffers();
-            void createGraphicsPipeline();
-            void createRenderFinishedSemaphores();
-            void createSyncObjects();
+            static constexpr uint32_t FRAMES_IN_FLIGHT = 2;
 
             void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
             void transitionImage(
@@ -77,9 +44,7 @@ namespace deoxy::graphics {
                 VkAccessFlags2 dstAccess
             );
 
-            VkShaderModule createShaderModule(const std::vector<uint32_t>& code);
-            static std::vector<uint32_t> readShaderFile(const std::filesystem::path& path);
-
+            // TODO: Falta ter uma classe de gerenciamento de buffers e outra da Mesh em si
             void createGeometryBuffers();
             void createBuffer(
                 VkDeviceSize size,
@@ -91,56 +56,25 @@ namespace deoxy::graphics {
             );
             void copyBuffer(VkBuffer src, VkBuffer dest, VkDeviceSize size);
 
-            bool getWindowPixelSize(int& width, int& height);
+            // ORDEM É IMPORTANTE!
+            // Construção: Cima pra Baixo
+            // Destruição: Baixo pra Cima
 
-            // VARIÁVEIS
-            static constexpr uint32_t FRAMES_IN_FLIGHT = 2;
+            vulkan::VulkanInstance m_instance;
+            vulkan::VulkanSurface m_surface;
+            vulkan::VulkanDevice m_device;
+            vulkan::VulkanAllocator m_allocator;
 
-            #ifndef NDEBUG
-                static constexpr bool ENABLE_VALIDATION = true;
-            #else
-                static constexpr bool ENABLE_VALIDATION = false;
-            #endif
+            vulkan::VulkanCommandPool m_commandPool;
+            vulkan::VulkanSwapchain m_swapchain;
 
-            VkInstance m_instance = VK_NULL_HANDLE;
-            VkSurfaceKHR m_surface = VK_NULL_HANDLE;
+            std::array<vulkan::VulkanFrame, FRAMES_IN_FLIGHT> m_frames;
 
-            VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
-            VkDevice m_device = VK_NULL_HANDLE;
-
-            VkDebugUtilsMessengerEXT m_debugMessenger = VK_NULL_HANDLE;
-
-            VkQueue m_queue = VK_NULL_HANDLE;
-            uint32_t m_graphicsQueueFamily = std::numeric_limits<std::uint32_t>::max();
-
-            VmaAllocator m_allocator = nullptr;
-
-            VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
-            VkExtent2D m_swapchainExtent{};
-            VkFormat m_swapchainFormat = VK_FORMAT_UNDEFINED;
-            std::vector<VkImage> m_swapchainImages{};
-            std::vector<VkImageView> m_swapchainImageViews{};
-
-            VkImage m_depthImage = VK_NULL_HANDLE;
-            VkImageView m_depthImageView = VK_NULL_HANDLE;
-            VmaAllocation m_depthAllocation = nullptr;
-            VkFormat m_depthFormat = VK_FORMAT_UNDEFINED;
-
-            VkCommandPool m_commandPool = VK_NULL_HANDLE;
-
-            struct FrameData {
-                VkCommandBuffer CommandBuffer = VK_NULL_HANDLE;
-                VkSemaphore ImageAvailableSemaphore = VK_NULL_HANDLE;
-                VkFence InFlightFence = VK_NULL_HANDLE;
-            };
+            vulkan::VulkanPipeline m_pipeline;
 
             uint32_t m_currentFrame = 0;
-            std::array<FrameData, FRAMES_IN_FLIGHT> m_frames{};
-            std::vector<VkSemaphore> m_renderFinishedSemaphore{};
 
-            VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
-            VkPipeline m_graphicsPipeline = VK_NULL_HANDLE;
-
+            // TEMPORÁRIO
             VkBuffer m_vertexBuffer = VK_NULL_HANDLE;
             VmaAllocation m_vertexAllocation = nullptr;
 

@@ -14,6 +14,7 @@ namespace deoxy::platform {
         std::string Title = "DeoxyVK";
         uint32_t Width = 800;
         uint32_t Height = 600;
+        bool Resizable = false;
     };
 
     class Window {

@@ -8,6 +8,15 @@ target_sources(Deoxy
         "src/core/application.cpp"
 
         "src/graphics/vulkan/vk_context.cpp"
+        "src/graphics/vulkan/components/vk_allocator.cpp"
+        "src/graphics/vulkan/components/vk_command_pool.cpp"
+        "src/graphics/vulkan/components/vk_device.cpp"
+        "src/graphics/vulkan/components/vk_frame.cpp"
+        "src/graphics/vulkan/components/vk_instance.cpp"
+        "src/graphics/vulkan/components/vk_pipeline.cpp"
+        "src/graphics/vulkan/components/vk_surface.cpp"
+        "src/graphics/vulkan/components/vk_swapchain.cpp"
+
         "src/graphics/renderer.cpp"
 
         "src/platform/message_box.cpp"
