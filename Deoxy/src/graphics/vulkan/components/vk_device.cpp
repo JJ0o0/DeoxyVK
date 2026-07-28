@@ -13,8 +13,6 @@ namespace deoxy::graphics::vulkan {
             selectPhysicalDevice();
             findQueueFamilies();
             createLogicalDevice();
-
-            volkLoadDevice(m_device);
         } catch (...) { destroy(); throw; }
     }
 
@@ -138,6 +136,8 @@ namespace deoxy::graphics::vulkan {
         };
 
         CheckResult(vkCreateDevice(m_physicalDevice, &deviceCI, nullptr, &m_device));
+
+        volkLoadDevice(m_device);
 
         // Pegar o Queue do logical device e salvar
         vkGetDeviceQueue(m_device, m_graphicsQueueFamily, 0, &m_queue);

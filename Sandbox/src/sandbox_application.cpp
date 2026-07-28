@@ -5,6 +5,7 @@ SandboxApplication::SandboxApplication()
         .Title = "DeoxyVK Sandbox",
         .Width = 800,
         .Height = 600,
+        .Resizable = false
      }) { }
 
 void SandboxApplication::OnStart() {

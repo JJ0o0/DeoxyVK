@@ -39,7 +39,7 @@ namespace deoxy::graphics {
 
     void VulkanContext::DrawFrame() {
         if (!m_swapchain.CanRender()) return;
-        if (m_swapchain.NeedsRecreation()) m_swapchain.Recreate(); return;
+        if (m_swapchain.NeedsRecreation()) { m_swapchain.Recreate(); return; }
 
         vulkan::VulkanFrame& frame = m_frames[m_currentFrame];
         frame.Wait();
