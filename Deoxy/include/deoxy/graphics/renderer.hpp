@@ -1,5 +1,6 @@
 #pragma once
 
+#include <deoxy/graphics/color.hpp>
 #include <memory>
 
 namespace deoxy::platform {
@@ -12,7 +13,11 @@ namespace deoxy::graphics {
             Renderer(platform::Window& window);
             ~Renderer();
 
-            void Render();
+            bool BeginFrame();
+            void EndFrame();
+
+            void SetClearColor(Color color);
+            void SetClearColor(Color32 color32);
         private:
             struct Impl;
             std::unique_ptr<Impl> m_impl;

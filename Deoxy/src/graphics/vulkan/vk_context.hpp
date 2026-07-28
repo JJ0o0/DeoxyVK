@@ -10,6 +10,8 @@
 #include "components/vk_swapchain.hpp"
 #include "components/vk_buffer.hpp"
 
+#include <deoxy/graphics/color.hpp>
+
 #include <volk.h>
 #include <vk_mem_alloc.h>
 
@@ -29,11 +31,19 @@ namespace deoxy::graphics {
             VulkanContext(const VulkanContext&) = delete;
             VulkanContext& operator=(const VulkanContext&) = delete;
 
-            void DrawFrame();
+            bool BeginFrame();
+            void EndFrame();
+
+            void SetClearColor(Color color);
         private:
             static constexpr uint32_t FRAMES_IN_FLIGHT = 2;
 
-            void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+            Color m_clearColor {
+                .R = 0.05f,
+                .G = 0.1f,
+                .B = 0.2f,
+                .A = 1.0f
+            };
 
             // TEMPORÁRIO: Mover para classe Mesh
             void createGeometryBuffers();
@@ -54,6 +64,9 @@ namespace deoxy::graphics {
 
             vulkan::VulkanPipeline m_pipeline;
 
+            bool m_frameActive = false;
+            bool m_swapchainSuboptimal = false;
+            uint32_t m_activeImageIndex = 0;
             uint32_t m_currentFrame = 0;
 
             // TEMPORÁRIO: Mover para classe Mesh

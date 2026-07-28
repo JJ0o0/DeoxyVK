@@ -10,4 +10,7 @@ class SandboxApplication : public deoxy::core::Application {
         void OnUpdate(float dt) override;
         void OnRender() override;
         void OnQuit() override;
+    private:
+        float m_time = 0.0f;
+        deoxy::graphics::Color m_clearColor{1.0f, 1.0f, 1.0f, 1.0f};
 };

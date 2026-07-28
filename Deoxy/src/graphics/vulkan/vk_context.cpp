@@ -63,9 +63,11 @@ namespace deoxy::graphics {
         if (device != VK_NULL_HANDLE) vkDeviceWaitIdle(device);
     }
 
-    void VulkanContext::DrawFrame() {
-        if (!m_swapchain.CanRender()) return;
-        if (m_swapchain.NeedsRecreation()) { m_swapchain.Recreate(); return; }
+    bool VulkanContext::BeginFrame() {
+        vulkan::CheckBool(!m_frameActive, "BeginFrame called while another frame is active");
+
+        if (!m_swapchain.CanRender()) return false;
+        if (m_swapchain.NeedsRecreation()) { m_swapchain.Recreate(); return false; }
 
         vulkan::VulkanFrame& frame = m_frames[m_currentFrame];
         frame.Wait();
@@ -81,86 +83,17 @@ namespace deoxy::graphics {
             &imageIndex
         );
 
-        if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR) {
-            m_swapchain.Recreate();
-            return;
-        }
-
+        if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR) { m_swapchain.Recreate(); return false; }
         if (acquireResult != VK_SUCCESS && acquireResult != VK_SUBOPTIMAL_KHR) vulkan::CheckResult(acquireResult);
 
-        const bool swapchainSuboptimal = acquireResult == VK_SUBOPTIMAL_KHR;
+        m_activeImageIndex = imageIndex;
+        m_swapchainSuboptimal = acquireResult == VK_SUBOPTIMAL_KHR;
 
-        // Não resta a cerca antes do acquire
+        // Não reseta a cerca antes do acquire
         frame.ResetForSubmit();
 
-        // Gravando o command buffer
-        recordCommandBuffer(frame.GetCommandBuffer(), imageIndex);
-
-        // Enviando para a GPU
-        const VkSemaphore renderFinishedSemaphore = m_swapchain.GetRenderFinishedSemaphore(imageIndex);
-        VkSemaphoreSubmitInfo waitSemaphoreInfo {
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-            .semaphore = frame.GetImageAvailableSemaphore(),
-            .value = 0,
-            .stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .deviceIndex = 0
-        };
-
-        VkCommandBufferSubmitInfo commandBufferInfo {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-            .commandBuffer = frame.GetCommandBuffer(),
-            .deviceMask = 1
-        };
-
-        VkSemaphoreSubmitInfo signalSemaphoreInfo {
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-            .semaphore = renderFinishedSemaphore,
-            .value = 0,
-            .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-            .deviceIndex = 0
-        };
-
-        VkSubmitInfo2 submitInfo {
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
-            .waitSemaphoreInfoCount = 1,
-            .pWaitSemaphoreInfos = &waitSemaphoreInfo,
-            .commandBufferInfoCount = 1,
-            .pCommandBufferInfos = &commandBufferInfo,
-            .signalSemaphoreInfoCount = 1,
-            .pSignalSemaphoreInfos = &signalSemaphoreInfo
-        };
-
-        vulkan::CheckResult(vkQueueSubmit2(m_device.GetQueue(), 1, &submitInfo, frame.GetFence()));
-
-        // Presentar a imagem
-        const VkSwapchainKHR swapchainHandle = m_swapchain.GetHandle();
-        VkPresentInfoKHR presentInfo {
-            .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-            .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &renderFinishedSemaphore,
-            .swapchainCount = 1,
-            .pSwapchains = &swapchainHandle,
-            .pImageIndices = &imageIndex
-        };
-
-        VkResult presentResult = vkQueuePresentKHR(m_device.GetQueue(), &presentInfo);
-
-        const bool mustRecreate = presentResult == VK_ERROR_OUT_OF_DATE_KHR ||
-                                  presentResult == VK_SUBOPTIMAL_KHR ||
-                                  swapchainSuboptimal;
-
-        if (presentResult != VK_SUCCESS &&
-            presentResult != VK_SUBOPTIMAL_KHR &&
-            presentResult != VK_ERROR_OUT_OF_DATE_KHR
-        ) vulkan::CheckResult(presentResult);
-
-        m_currentFrame = (m_currentFrame + 1) % FRAMES_IN_FLIGHT;
-
-        if (mustRecreate) m_swapchain.Recreate();
-    }
-
-    void VulkanContext::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
         // Iniciando o command buffer
+        const VkCommandBuffer commandBuffer = frame.GetCommandBuffer();
         VkCommandBufferBeginInfo beginInfo {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
             .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
@@ -170,8 +103,6 @@ namespace deoxy::graphics {
 
         // Prepara a imagem para receber renderização
         const VkImage swapchainImage = m_swapchain.GetImage(imageIndex);
-        const VkImageView swapchainImageView = m_swapchain.GetImageView(imageIndex);
-        const VkExtent2D extent = m_swapchain.GetExtent();
         vulkan::TransitionImage(
             commandBuffer, swapchainImage,
             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -181,21 +112,24 @@ namespace deoxy::graphics {
         );
 
         // Configura o attachment de cor
+
+        VkClearValue clearValue {};
+        clearValue.color.float32[0] = m_clearColor.R;
+        clearValue.color.float32[1] = m_clearColor.G;
+        clearValue.color.float32[2] = m_clearColor.B;
+        clearValue.color.float32[3] = m_clearColor.A;
+
+        const VkImageView swapchainImageView = m_swapchain.GetImageView(imageIndex);
         VkRenderingAttachmentInfo colorAttachment {
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
             .imageView = swapchainImageView,
             .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            .clearValue {
-                .color {
-                    .float32 {
-                        0.05f, 0.1f, 0.2f, 1.0f
-                    }
-                }
-            }
+            .clearValue = clearValue
         };
 
+        const VkExtent2D extent = m_swapchain.GetExtent();
         VkRenderingInfo renderingInfo {
             .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
             .renderArea {
@@ -227,15 +161,26 @@ namespace deoxy::graphics {
                 vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
                 vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-                const VkBuffer vertexBuffer = m_vertexBuffer.GetHandle();
-                const VkDeviceSize vertexOffset = 0;
-                vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, &vertexOffset);
-                vkCmdBindIndexBuffer(commandBuffer, m_indexBuffer.GetHandle(), 0, VK_INDEX_TYPE_UINT32);
+        m_frameActive = true;
+        return true;
+    }
 
-                vkCmdDrawIndexed(commandBuffer, m_indexCount, 1, 0, 0, 0);
+    void VulkanContext::EndFrame() {
+        vulkan::CheckBool(m_frameActive, "EndFrame called without BeginFrame");
+
+        vulkan::VulkanFrame& frame = m_frames[m_currentFrame];
+        const VkCommandBuffer commandBuffer = frame.GetCommandBuffer();
+            // TEMPORÁRIO! Futuramente, será algo tipo DrawMesh
+            const VkBuffer vertexBuffer = m_vertexBuffer.GetHandle();
+            const VkDeviceSize vertexOffset = 0;
+            vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, &vertexOffset);
+            vkCmdBindIndexBuffer(commandBuffer, m_indexBuffer.GetHandle(), 0, VK_INDEX_TYPE_UINT32);
+
+            vkCmdDrawIndexed(commandBuffer, m_indexCount, 1, 0, 0, 0);
         vkCmdEndRendering(commandBuffer);
 
         // Prepara a imagem para aparecer na tela
+        const VkImage swapchainImage = m_swapchain.GetImage(m_activeImageIndex);
         vulkan::TransitionImage(
             commandBuffer, swapchainImage,
             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
@@ -244,6 +189,74 @@ namespace deoxy::graphics {
         );
 
         vulkan::CheckResult(vkEndCommandBuffer(commandBuffer));
+
+        // Enviando para a GPU
+        const VkSemaphore renderFinishedSemaphore = m_swapchain.GetRenderFinishedSemaphore(m_activeImageIndex);
+        VkSemaphoreSubmitInfo waitSemaphoreInfo {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+            .semaphore = frame.GetImageAvailableSemaphore(),
+            .value = 0,
+            .stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .deviceIndex = 0
+        };
+
+        VkCommandBufferSubmitInfo commandBufferInfo {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+            .commandBuffer = commandBuffer,
+            .deviceMask = 1
+        };
+
+        VkSemaphoreSubmitInfo signalSemaphoreInfo {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+            .semaphore = renderFinishedSemaphore,
+            .value = 0,
+            .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+            .deviceIndex = 0
+        };
+
+        VkSubmitInfo2 submitInfo {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+            .waitSemaphoreInfoCount = 1,
+            .pWaitSemaphoreInfos = &waitSemaphoreInfo,
+            .commandBufferInfoCount = 1,
+            .pCommandBufferInfos = &commandBufferInfo,
+            .signalSemaphoreInfoCount = 1,
+            .pSignalSemaphoreInfos = &signalSemaphoreInfo
+        };
+
+        vulkan::CheckResult(vkQueueSubmit2(m_device.GetQueue(), 1, &submitInfo, frame.GetFence()));
+
+        // Presentar a imagem
+        const VkSwapchainKHR swapchain = m_swapchain.GetHandle();
+        VkPresentInfoKHR presentInfo {
+            .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = &renderFinishedSemaphore,
+            .swapchainCount = 1,
+            .pSwapchains = &swapchain,
+            .pImageIndices = &m_activeImageIndex
+        };
+
+        const VkResult presentResult = vkQueuePresentKHR(m_device.GetQueue(), &presentInfo);
+        const bool mustRecreate = presentResult == VK_ERROR_OUT_OF_DATE_KHR ||
+                                  presentResult == VK_SUBOPTIMAL_KHR ||
+                                  m_swapchainSuboptimal;
+
+        m_frameActive = false;
+        m_swapchainSuboptimal = false;
+
+        m_currentFrame = (m_currentFrame + 1) % FRAMES_IN_FLIGHT;
+
+        if (presentResult != VK_SUCCESS &&
+            presentResult != VK_SUBOPTIMAL_KHR &&
+            presentResult != VK_ERROR_OUT_OF_DATE_KHR
+        ) vulkan::CheckResult(presentResult);
+
+        if (mustRecreate && m_swapchain.CanRender()) m_swapchain.Recreate();
+    }
+
+    void VulkanContext::SetClearColor(Color color) {
+        m_clearColor = color;
     }
 
     void VulkanContext::createGeometryBuffers() {

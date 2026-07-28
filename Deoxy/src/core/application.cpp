@@ -35,7 +35,11 @@ namespace deoxy::core {
                 m_window->PollEvents();
 
                 OnUpdate(deltaTime);
-                OnRender();
+
+                if (m_renderer->BeginFrame()) {
+                    OnRender();
+                    m_renderer->EndFrame();
+                }
             }
 
             OnQuit();

@@ -1,5 +1,7 @@
 #include <sandbox_application.hpp>
 
+using namespace deoxy::core::math;
+
 SandboxApplication::SandboxApplication()
     : Application({
         .Title = "DeoxyVK Sandbox",
@@ -13,12 +15,17 @@ void SandboxApplication::OnStart() {
 }
 
 void SandboxApplication::OnUpdate(float deltaTime){
-    // Atualiza jogo, câmera, input etc.
+    m_time += deltaTime;
+
+    m_clearColor.R = 0.5f + 0.5f * Sin(m_time);
+    m_clearColor.G = 0.5f + 0.5f * Sin(m_time + TWO_PI / 3);
+    m_clearColor.B = 0.5f + 0.5f * Sin(m_time + (TWO_PI * 2) / 3);
+
+    GetRenderer().SetClearColor(m_clearColor);
 }
 
 void SandboxApplication::OnRender() {
-    // TEMPORÁRIO SÓ PRA TESTAR O RENDERER
-    GetRenderer().Render();
+    // Algo como RenderMesh
 }
 
 void SandboxApplication::OnQuit() {

@@ -16,7 +16,19 @@ namespace deoxy::graphics {
 
     Renderer::~Renderer() = default;
 
-    void Renderer::Render() {
-        m_impl->Context.DrawFrame();
+    bool Renderer::BeginFrame() {
+        return m_impl->Context.BeginFrame();
+    }
+
+    void Renderer::EndFrame() {
+        m_impl->Context.EndFrame();
+    }
+
+    void Renderer::SetClearColor(Color color) {
+        m_impl->Context.SetClearColor(color);
+    }
+
+    void Renderer::SetClearColor(Color32 color32) {
+        m_impl->Context.SetClearColor(ToColor(color32));
     }
 }
