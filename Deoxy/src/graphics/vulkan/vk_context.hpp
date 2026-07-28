@@ -8,6 +8,7 @@
 #include "components/vk_pipeline.hpp"
 #include "components/vk_surface.hpp"
 #include "components/vk_swapchain.hpp"
+#include "components/vk_buffer.hpp"
 
 #include <volk.h>
 #include <vk_mem_alloc.h>
@@ -33,28 +34,9 @@ namespace deoxy::graphics {
             static constexpr uint32_t FRAMES_IN_FLIGHT = 2;
 
             void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
-            void transitionImage(
-                VkCommandBuffer commandBuffer,
-                VkImage image,
-                VkImageLayout oldLayout,
-                VkImageLayout newLayout,
-                VkPipelineStageFlags2 srcStage,
-                VkAccessFlags2 srcAccess,
-                VkPipelineStageFlags2 dstStage,
-                VkAccessFlags2 dstAccess
-            );
 
-            // TODO: Falta ter uma classe de gerenciamento de buffers e outra da Mesh em si
+            // TEMPORÁRIO: Mover para classe Mesh
             void createGeometryBuffers();
-            void createBuffer(
-                VkDeviceSize size,
-                VkBufferUsageFlags usage,
-                VmaMemoryUsage memoryUsage,
-                VmaAllocationCreateFlags allocationFlags,
-                VkBuffer& buffer,
-                VmaAllocation& allocation
-            );
-            void copyBuffer(VkBuffer src, VkBuffer dest, VkDeviceSize size);
 
             // ORDEM É IMPORTANTE!
             // Construção: Cima pra Baixo
@@ -74,12 +56,9 @@ namespace deoxy::graphics {
 
             uint32_t m_currentFrame = 0;
 
-            // TEMPORÁRIO
-            VkBuffer m_vertexBuffer = VK_NULL_HANDLE;
-            VmaAllocation m_vertexAllocation = nullptr;
-
-            VkBuffer m_indexBuffer = VK_NULL_HANDLE;
-            VmaAllocation m_indexAllocation = nullptr;
+            // TEMPORÁRIO: Mover para classe Mesh
+            vulkan::VulkanBuffer m_vertexBuffer;
+            vulkan::VulkanBuffer m_indexBuffer;
 
             uint32_t m_indexCount = 0;
     };

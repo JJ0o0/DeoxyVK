@@ -1,5 +1,6 @@
 #include "vk_context.hpp"
 #include "components/vk_helper.hpp"
+#include "components/vk_commands.hpp"
 
 #include <deoxy/platform/window.hpp>
 #include <deoxy/platform/logger.hpp>
@@ -10,6 +11,25 @@
 #include <array>
 
 namespace deoxy::graphics {
+    const std::array<Vertex, 3> TRIANGLE_VERTICES {
+        Vertex {
+            .Position = { 0.0f, -0.5f, 0.0f },
+            .Color = { 1.0f, 0.0f, 0.0f }
+        },
+        Vertex {
+            .Position = { 0.5f, 0.5f, 0.0f },
+            .Color = { 0.0f, 1.0f, 0.0f }
+        },
+        Vertex {
+            .Position = { -0.5f, 0.5f, 0.0f },
+            .Color = { 0.0f, 0.0f, 1.0f }
+        }
+    };
+
+    const std::array<uint32_t, 3> TRIANGLE_INDICES {
+        0, 1, 2
+    };
+
     VulkanContext::VulkanContext(platform::Window& window)
         : m_instance(),
           m_surface(m_instance.GetHandle(), window.GetHandle()),
@@ -23,18 +43,24 @@ namespace deoxy::graphics {
           },
           m_pipeline(
               m_device.GetLogical(), m_swapchain.GetColorFormat(),
-              "shaders/basic.vert.spv", "shaders/basic.frag.spv") {
+              "shaders/basic.vert.spv", "shaders/basic.frag.spv"),
+          m_vertexBuffer(
+              m_allocator, sizeof(TRIANGLE_VERTICES),
+              VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+              VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
+          ),
+          m_indexBuffer(
+              m_allocator, sizeof(TRIANGLE_INDICES),
+              VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+              VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
+          ),
+          m_indexCount(static_cast<uint32_t>(TRIANGLE_INDICES.size())) {
         createGeometryBuffers();
     }
 
     VulkanContext::~VulkanContext() {
         const VkDevice device = m_device.GetLogical();
-
         if (device != VK_NULL_HANDLE) vkDeviceWaitIdle(device);
-
-        const VmaAllocator allocator = m_allocator.GetHandle();
-        if (m_indexBuffer != VK_NULL_HANDLE) vmaDestroyBuffer(allocator, m_indexBuffer, m_indexAllocation);
-        if (m_vertexBuffer != VK_NULL_HANDLE) vmaDestroyBuffer(allocator, m_vertexBuffer, m_vertexAllocation);
     }
 
     void VulkanContext::DrawFrame() {
@@ -146,7 +172,7 @@ namespace deoxy::graphics {
         const VkImage swapchainImage = m_swapchain.GetImage(imageIndex);
         const VkImageView swapchainImageView = m_swapchain.GetImageView(imageIndex);
         const VkExtent2D extent = m_swapchain.GetExtent();
-        transitionImage(
+        vulkan::TransitionImage(
             commandBuffer, swapchainImage,
             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             VK_PIPELINE_STAGE_2_NONE, 0,
@@ -201,15 +227,16 @@ namespace deoxy::graphics {
                 vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
                 vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-                VkDeviceSize vertexOffset = 0;
-                vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_vertexBuffer, &vertexOffset);
-                vkCmdBindIndexBuffer(commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+                const VkBuffer vertexBuffer = m_vertexBuffer.GetHandle();
+                const VkDeviceSize vertexOffset = 0;
+                vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, &vertexOffset);
+                vkCmdBindIndexBuffer(commandBuffer, m_indexBuffer.GetHandle(), 0, VK_INDEX_TYPE_UINT32);
 
                 vkCmdDrawIndexed(commandBuffer, m_indexCount, 1, 0, 0, 0);
         vkCmdEndRendering(commandBuffer);
 
         // Prepara a imagem para aparecer na tela
-        transitionImage(
+        vulkan::TransitionImage(
             commandBuffer, swapchainImage,
             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
             VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
@@ -219,206 +246,47 @@ namespace deoxy::graphics {
         vulkan::CheckResult(vkEndCommandBuffer(commandBuffer));
     }
 
-    void VulkanContext::transitionImage(
-        VkCommandBuffer commandBuffer,
-        VkImage image,
-        VkImageLayout oldLayout,
-        VkImageLayout newLayout,
-        VkPipelineStageFlags2 srcStage,
-        VkAccessFlags2 srcAccess,
-        VkPipelineStageFlags2 dstStage,
-        VkAccessFlags2 dstAccess
-    ) {
-        VkImageMemoryBarrier2 barrier{
-            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-            .srcStageMask = srcStage,
-            .srcAccessMask = srcAccess,
-            .dstStageMask = dstStage,
-            .dstAccessMask = dstAccess,
-            .oldLayout = oldLayout,
-            .newLayout = newLayout,
-            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .image = image,
-            .subresourceRange = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .baseMipLevel = 0,
-                .levelCount = 1,
-                .baseArrayLayer = 0,
-                .layerCount = 1
-            }
-        };
-
-        VkDependencyInfo dependencyInfo{
-            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-            .imageMemoryBarrierCount = 1,
-            .pImageMemoryBarriers = &barrier
-        };
-
-        vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
-    }
-
     void VulkanContext::createGeometryBuffers() {
-        // Cria as informações
-        const std::array<Vertex, 3> vertices {
-            Vertex {
-                .Position = { 0.0f, -0.5f, 0.0f },
-                .Color = { 1.0f, 0.0f, 0.0f }
-            },
-            Vertex {
-                .Position = { 0.5f, 0.5f, 0.0f },
-                .Color = { 0.0f, 1.0f, 0.0f }
-            },
-            Vertex {
-                .Position = { -0.5f, 0.5f, 0.0f },
-                .Color = { 0.0f, 0.0f, 1.0f }
-            }
-        };
-
-        const std::array<uint32_t, 3> indices {
-            0, 1, 2
-        };
-
         // Cria o staging buffer para o vertex
-        const VkDeviceSize vertexBufferSize = sizeof(vertices);
-        VkBuffer stagingVertexBuffer = VK_NULL_HANDLE;
-        VmaAllocation stagingVertexAllocation = nullptr;
-        createBuffer(
-            vertexBufferSize,
+        const VkDeviceSize vertexBufferSize = sizeof(TRIANGLE_VERTICES);
+        vulkan::VulkanBuffer stagingVertexBuffer {
+            m_allocator, vertexBufferSize,
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
-            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
-            stagingVertexBuffer,
-            stagingVertexAllocation
-        );
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
+        };
 
         // Copia os dados da CPU
-        vulkan::CheckResult(vmaCopyMemoryToAllocation(
-            m_allocator.GetHandle(),
-            vertices.data(),
-            stagingVertexAllocation,
-            0,
-            vertexBufferSize
-        ));
-
-        // Cria o VBO
-        createBuffer(
-            vertexBufferSize,
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-            VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0,
-            m_vertexBuffer,
-            m_vertexAllocation
-        );
+        stagingVertexBuffer.Upload(TRIANGLE_VERTICES.data(), vertexBufferSize);
 
         // Copia staging para a GPU
-        copyBuffer(stagingVertexBuffer, m_vertexBuffer, vertexBufferSize);
-
-        // Destrói o staging
-        vmaDestroyBuffer(m_allocator.GetHandle(), stagingVertexBuffer, stagingVertexAllocation);
+        vulkan::CopyBufferImmediate(
+            m_device.GetQueue(),
+            m_commandPool,
+            stagingVertexBuffer.GetHandle(),
+            m_vertexBuffer.GetHandle(),
+            vertexBufferSize
+        );
 
         // Cria o staging buffer para o index
-        const VkDeviceSize indexBufferSize = sizeof(indices);
-        VkBuffer stagingIndexBuffer = VK_NULL_HANDLE;
-        VmaAllocation stagingIndexAllocation = nullptr;
-        createBuffer(
-            indexBufferSize,
+        const VkDeviceSize indexBufferSize = sizeof(TRIANGLE_INDICES);
+        vulkan::VulkanBuffer stagingIndexBuffer {
+            m_allocator, indexBufferSize,
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
-            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
-            stagingIndexBuffer,
-            stagingIndexAllocation
-        );
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
+        };
 
         // Copia os dados da CPU
-        vulkan::CheckResult(vmaCopyMemoryToAllocation(
-            m_allocator.GetHandle(),
-            indices.data(),
-            stagingIndexAllocation,
-            0,
-            indexBufferSize
-        ));
-
-        // Cria o EBO
-        createBuffer(
-            indexBufferSize,
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-            VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0,
-            m_indexBuffer,
-            m_indexAllocation
-        );
+        stagingIndexBuffer.Upload(TRIANGLE_INDICES.data(), indexBufferSize);
 
         // Copia staging para a GPU
-        copyBuffer(stagingIndexBuffer, m_indexBuffer, indexBufferSize);
-
-        // Destrói o staging
-        vmaDestroyBuffer(m_allocator.GetHandle(), stagingIndexBuffer, stagingIndexAllocation);
-
-        m_indexCount = static_cast<uint32_t>(indices.size());
-    }
-
-    // Helper para criar buffers
-    void VulkanContext::createBuffer(
-        VkDeviceSize size,
-        VkBufferUsageFlags usage,
-        VmaMemoryUsage memoryUsage,
-        VmaAllocationCreateFlags allocationFlags,
-        VkBuffer& buffer,
-        VmaAllocation& allocation
-    ) {
-        VkBufferCreateInfo bufferCI {
-            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-            .size = size,
-            .usage = usage,
-            .sharingMode = VK_SHARING_MODE_EXCLUSIVE
-        };
-
-        VmaAllocationCreateInfo allocationCI {
-            .flags = allocationFlags,
-            .usage = memoryUsage
-        };
-
-        vulkan::CheckResult(vmaCreateBuffer(m_allocator.GetHandle(), &bufferCI, &allocationCI, &buffer, &allocation, nullptr));
-    }
-
-    // Helper para copiar buffers
-    void VulkanContext::copyBuffer(VkBuffer src, VkBuffer dest, VkDeviceSize size) {
-        VkCommandBuffer commandBuffer = m_commandPool.AllocatePrimary();
-
-        try {
-            VkCommandBufferBeginInfo beginInfo {
-                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-                .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-            };
-
-            vulkan::CheckResult(vkBeginCommandBuffer(commandBuffer, &beginInfo));
-                VkBufferCopy copyRegion {
-                    .srcOffset = 0,
-                    .dstOffset = 0,
-                    .size = size
-                };
-
-                vkCmdCopyBuffer(commandBuffer, src, dest, 1, &copyRegion);
-            vulkan::CheckResult(vkEndCommandBuffer(commandBuffer));
-
-            VkCommandBufferSubmitInfo commandBufferInfo {
-                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-                .commandBuffer = commandBuffer,
-                .deviceMask = 1
-            };
-
-            VkSubmitInfo2 submitInfo {
-                .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
-                .commandBufferInfoCount = 1,
-                .pCommandBufferInfos = &commandBufferInfo
-            };
-
-            vulkan::CheckResult(vkQueueSubmit2(m_device.GetQueue(), 1, &submitInfo, VK_NULL_HANDLE));
-            vulkan::CheckResult(vkQueueWaitIdle(m_device.GetQueue()));
-        } catch (...) {
-            m_commandPool.Free(commandBuffer);
-            throw;
-        }
-
-        m_commandPool.Free(commandBuffer);
+        vulkan::CopyBufferImmediate(
+            m_device.GetQueue(),
+            m_commandPool,
+            stagingIndexBuffer.GetHandle(),
+            m_indexBuffer.GetHandle(),
+            indexBufferSize
+        );
     }
 }

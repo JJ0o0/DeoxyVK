@@ -17,6 +17,7 @@ void SandboxApplication::OnUpdate(float deltaTime){
 }
 
 void SandboxApplication::OnRender() {
+    // TEMPORÁRIO SÓ PRA TESTAR O RENDERER
     GetRenderer().Render();
 }
 

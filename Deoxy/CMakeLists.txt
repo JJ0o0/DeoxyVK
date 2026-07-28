@@ -16,6 +16,8 @@ target_sources(Deoxy
         "src/graphics/vulkan/components/vk_pipeline.cpp"
         "src/graphics/vulkan/components/vk_surface.cpp"
         "src/graphics/vulkan/components/vk_swapchain.cpp"
+        "src/graphics/vulkan/components/vk_buffer.cpp"
+        "src/graphics/vulkan/components/vk_commands.cpp"
 
         "src/graphics/renderer.cpp"
 
