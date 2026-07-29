@@ -21,7 +21,18 @@ namespace deoxy::graphics {
         uint8_t G = 255;
         uint8_t B = 255;
         uint8_t A = 255;
+
+        bool operator==(const Color32&) const = default;
     };
+
+    // Comparar cores
+    inline bool ApproximatelyEqual(const Color& a, const Color& b, float epsilon = 0.00001f) {
+        return
+            std::abs(a.R - b.R) <= epsilon &&
+            std::abs(a.G - b.G) <= epsilon &&
+            std::abs(a.B - b.B) <= epsilon &&
+            std::abs(a.A - b.A) <= epsilon;
+    }
 
     // Converte de SRGB para Linear
     inline float SrgbToLinear(float channel) noexcept {

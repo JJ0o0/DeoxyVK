@@ -21,6 +21,8 @@ target_sources(Deoxy
 
         "src/graphics/renderer.cpp"
 
+        "src/input/input.cpp"
+
         "src/platform/message_box.cpp"
         "src/platform/logger.cpp"
         "src/platform/window.cpp"

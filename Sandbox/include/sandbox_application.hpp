@@ -12,5 +12,5 @@ class SandboxApplication : public deoxy::core::Application {
         void OnQuit() override;
     private:
         float m_time = 0.0f;
-        deoxy::graphics::Color m_clearColor{1.0f, 1.0f, 1.0f, 1.0f};
+        deoxy::graphics::Color32 m_clearColor{255, 255, 255, 255};
 };

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <deoxy/input/input.hpp>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -26,7 +27,7 @@ namespace deoxy::platform {
             Window& operator=(const Window&) = delete;
 
             void Destroy();
-            void PollEvents();
+            void PollEvents(Input& input);
 
             bool ShouldClose() const;
 

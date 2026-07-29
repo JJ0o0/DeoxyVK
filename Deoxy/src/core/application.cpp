@@ -16,6 +16,7 @@ namespace deoxy::core {
             platform::Logger::Info("Initializing...");
             m_window = std::make_unique<platform::Window>(m_windowProperties);
             m_renderer = std::make_unique<graphics::Renderer>(*m_window);
+            m_input = std::make_unique<Input>();
 
             OnStart();
 
@@ -32,7 +33,7 @@ namespace deoxy::core {
                     0.1f
                 );
 
-                m_window->PollEvents();
+                m_window->PollEvents(*m_input);
 
                 OnUpdate(deltaTime);
 
@@ -61,4 +62,7 @@ namespace deoxy::core {
 
     graphics::Renderer& Application::GetRenderer() { return *m_renderer; }
     const graphics::Renderer& Application::GetRenderer() const { return *m_renderer; }
+
+    Input& Application::GetInput() { return *m_input; }
+    const Input& Application::GetInput() const { return *m_input; }
 }
