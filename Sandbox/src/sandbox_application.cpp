@@ -1,6 +1,9 @@
 #include <sandbox_application.hpp>
 
 using namespace deoxy::core::math;
+using namespace deoxy::graphics;
+
+constexpr auto CLEAR_COLOR = ParseHexColor32("#1B1B1E").value(); // Carbon Black
 
 SandboxApplication::SandboxApplication()
     : Application({
@@ -12,16 +15,12 @@ SandboxApplication::SandboxApplication()
 
 void SandboxApplication::OnStart() {
     deoxy::platform::Logger::Info("Sandbox started");
+
+    GetRenderer().SetClearColor(CLEAR_COLOR);
 }
 
-void SandboxApplication::OnUpdate(float deltaTime){
-    m_time += deltaTime;
+void SandboxApplication::OnUpdate(float deltaTime) {
 
-    m_clearColor.R = 0.5f + 0.5f * Sin(m_time);
-    m_clearColor.G = 0.5f + 0.5f * Sin(m_time + TWO_PI / 3);
-    m_clearColor.B = 0.5f + 0.5f * Sin(m_time + (TWO_PI * 2) / 3);
-
-    GetRenderer().SetClearColor(m_clearColor);
 }
 
 void SandboxApplication::OnRender() {
