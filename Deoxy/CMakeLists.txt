@@ -19,6 +19,8 @@ target_sources(Deoxy
         "src/graphics/vulkan/components/vk_buffer.cpp"
         "src/graphics/vulkan/components/vk_commands.cpp"
 
+        "src/graphics/vulkan/graphical/vk_mesh.cpp"
+
         "src/graphics/renderer.cpp"
 
         "src/input/input.cpp"

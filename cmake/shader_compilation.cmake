@@ -22,7 +22,7 @@ function(deoxy_compile_shader TARGET_NAME SHADER_NAME)
         )
     endif()
 
-    set(SHADER_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/shaders")
+    set(SHADER_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>/shaders")
     set(VERTEX_OUTPUT "${SHADER_OUTPUT_DIRECTORY}/${SHADER_NAME}.vert.spv")
     set(FRAGMENT_OUTPUT "${SHADER_OUTPUT_DIRECTORY}/${SHADER_NAME}.frag.spv")
 

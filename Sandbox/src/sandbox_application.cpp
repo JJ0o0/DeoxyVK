@@ -1,7 +1,31 @@
 #include <sandbox_application.hpp>
 
-constexpr auto CLEAR_COLOR_0 = ParseHexColor32("#1B1B1E").value(); // Carbon Black
-constexpr auto CLEAR_COLOR_1 = ParseHexColor32("#E4E4E4").value(); // Ash White
+const auto CLEAR_COLOR_0 = ParseHexColor32("#1B1B1E").value(); // Carbon Black
+const auto CLEAR_COLOR_1 = ParseHexColor32("#E4E4E4").value(); // Ash White
+
+const std::array<Vertex, 4> QUAD_VERTICES {
+    Vertex {
+        .Position = { 0.5f, -0.5f, 0.0f },
+        .Color = { 1.0f, 0.0f, 0.0f }
+    },
+    Vertex {
+        .Position = { 0.5f, 0.5f, 0.0f },
+        .Color = { 0.0f, 1.0f, 0.0f }
+    },
+    Vertex {
+        .Position = { -0.5f, -0.5f, 0.0f },
+        .Color = { 0.0f, 0.0f, 1.0f }
+    },
+    Vertex {
+        .Position = { -0.5f, 0.5f, 0.0f },
+        .Color = { 1.0f, 0.0f, 1.0f }
+    }
+};
+
+const std::array<uint32_t, 6> QUAD_INDICES {
+    0, 1, 2,
+    1, 2, 3
+};
 
 SandboxApplication::SandboxApplication()
     : Application({
@@ -19,7 +43,17 @@ void SandboxApplication::OnStart() {
 }
 
 void SandboxApplication::OnUpdate(float deltaTime) {
-    auto& input = GetInput();
+    auto& renderer = GetRenderer();
+    const auto& input = GetInput();
+
+    if (input.WasPressed(deoxy::input::Key::T) && !m_quad) {
+        m_quad = renderer.CreateMesh(QUAD_VERTICES, QUAD_INDICES);
+    }
+
+    if (input.WasPressed(deoxy::input::Key::R) && m_quad) {
+        renderer.DestroyMesh(m_quad);
+        m_quad = {};
+    }
 
     if (input.WasPressed(Key::Space)) {
         m_clearColor = m_clearColor != CLEAR_COLOR_1 ? CLEAR_COLOR_1 : CLEAR_COLOR_0;
@@ -28,7 +62,7 @@ void SandboxApplication::OnUpdate(float deltaTime) {
 }
 
 void SandboxApplication::OnRender() {
-    // Algo como RenderMesh
+    if (m_quad) GetRenderer().DrawMesh(m_quad);
 }
 
 void SandboxApplication::OnQuit() {

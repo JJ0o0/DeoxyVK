@@ -31,4 +31,16 @@ namespace deoxy::graphics {
     void Renderer::SetClearColor(Color32 color32) {
         m_impl->Context.SetClearColor(ToColor(color32));
     }
+
+    MeshHandle Renderer::CreateMesh(std::span<const Vertex> vertices, std::span<const uint32_t> indices) {
+        return m_impl->Context.CreateMesh(vertices, indices);
+    }
+
+    void Renderer::DestroyMesh(MeshHandle mesh) {
+        m_impl->Context.DestroyMesh(mesh);
+    }
+
+    void Renderer::DrawMesh(MeshHandle mesh) {
+        m_impl->Context.DrawMesh(mesh);
+    }
 }

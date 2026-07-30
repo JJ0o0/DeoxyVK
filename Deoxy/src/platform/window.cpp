@@ -1,8 +1,9 @@
 #include <deoxy/platform/window.hpp>
 #include <deoxy/platform/logger.hpp>
 #include <deoxy/input/key.hpp>
-#include <SDL3/SDL.h>
 #include <stdexcept>
+#include <optional>
+#include <SDL3/SDL.h>
 
 namespace deoxy::platform {
     struct Window::Impl {

@@ -13,4 +13,5 @@ class SandboxApplication : public deoxy::core::Application {
     private:
         float m_time = 0.0f;
         deoxy::graphics::Color32 m_clearColor{255, 255, 255, 255};
+        deoxy::graphics::MeshHandle m_quad;
 };

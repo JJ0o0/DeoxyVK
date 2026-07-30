@@ -3,5 +3,6 @@ build/
 build-windows/
 dist/
 vcpkg/
+.clangd
 
 mingw-w64.cmake

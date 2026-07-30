@@ -1,7 +1,12 @@
 #pragma once
 
 #include <deoxy/graphics/color.hpp>
+#include <deoxy/graphics/mesh_handle.hpp>
+#include <deoxy/graphics/vertex.hpp>
+
+#include <cstdint>
 #include <memory>
+#include <span>
 
 namespace deoxy::platform {
     class Window;
@@ -18,6 +23,10 @@ namespace deoxy::graphics {
 
             void SetClearColor(Color color);
             void SetClearColor(Color32 color32);
+
+            MeshHandle CreateMesh(std::span<const Vertex> vertices, std::span<const uint32_t> indices);
+            void DestroyMesh(MeshHandle mesh);
+            void DrawMesh(MeshHandle mesh);
         private:
             struct Impl;
             std::unique_ptr<Impl> m_impl;

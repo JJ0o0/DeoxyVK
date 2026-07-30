@@ -15,6 +15,8 @@ set_target_properties(Sandbox
     PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY
             "${CMAKE_BINARY_DIR}/bin"
+        VS_DEBUGGER_WORKING_DIRECTORY
+            "$<TARGET_FILE_DIR:Sandbox>"
 )
 
 deoxy_compile_shader(

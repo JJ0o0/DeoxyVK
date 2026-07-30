@@ -42,7 +42,7 @@ namespace deoxy::graphics {
     }
 
     // Converte os canais de 0-255 para 0.0-1.0
-    constexpr Color ToColor(const Color32& color32) {
+    inline Color ToColor(const Color32& color32) {
         const auto toLinear = [](std::uint8_t channel) {
             const float srgb = static_cast<float>(channel) / 255.0f;
             return SrgbToLinear(srgb);
@@ -57,7 +57,7 @@ namespace deoxy::graphics {
     }
 
     // Converte os canais de 0.0-1.0 para 0-255
-    constexpr Color32 ToColor32(const Color& color) {
+    inline Color32 ToColor32(const Color& color) {
         const auto toByte = [](float channel) constexpr -> uint8_t {
             channel = std::clamp(channel, 0.0f, 1.0f);
             return static_cast<uint8_t>((channel * 255.0f) + 0.5f);
@@ -73,7 +73,7 @@ namespace deoxy::graphics {
 
     namespace detail {
         // Converte um caractere hexadecimal em número
-        constexpr int HexDigitValue(char character) {
+        inline int HexDigitValue(char character) {
             if (character >= '0' && character <= '9') return character - '0';
             if (character >= 'A' && character <= 'F') return character - 'A' + 10;
             if (character >= 'a' && character <= 'f') return character - 'a' + 10;
@@ -82,7 +82,7 @@ namespace deoxy::graphics {
         }
 
         // Recebe dois dígitos hexadecimais e forma um byte
-        constexpr std::optional<uint8_t> ParseHexByte(char first, char second) {
+        inline std::optional<uint8_t> ParseHexByte(char first, char second) {
             const int high = HexDigitValue(first);
             const int low = HexDigitValue(second);
 
@@ -92,7 +92,7 @@ namespace deoxy::graphics {
     }
 
     // Converte uma cor em hexadecimal para Color32 (0-255)
-    constexpr std::optional<Color32> ParseHexColor32(std::string_view hexadecimal) {
+    inline std::optional<Color32> ParseHexColor32(std::string_view hexadecimal) {
         if (!hexadecimal.empty() && hexadecimal.front() == '#') hexadecimal.remove_prefix(1);
         if (hexadecimal.size() != 6 && hexadecimal.size() != 8) return std::nullopt;
 
@@ -119,7 +119,7 @@ namespace deoxy::graphics {
     }
 
     // Converte uma cor em hexadecimal para Color (0.0-1.0)
-    constexpr std::optional<Color> ParseHexColor(std::string_view hexadecimal) {
+    inline std::optional<Color> ParseHexColor(std::string_view hexadecimal) {
         const auto color32 = ParseHexColor32(hexadecimal);
         if (!color32) return std::nullopt;
 

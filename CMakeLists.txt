@@ -17,6 +17,7 @@ option(DEOXY_BUILD_SANDBOX "Build the Deoxy sandbox application" ON)
 # DEPENDÊNCIAS
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(dependencies)
+include(options)
 deoxy_setup_dependencies()
 
 # SUBDIRETÓRIOS

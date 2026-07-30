@@ -11,25 +11,6 @@
 #include <array>
 
 namespace deoxy::graphics {
-    const std::array<Vertex, 3> TRIANGLE_VERTICES {
-        Vertex {
-            .Position = { 0.0f, -0.5f, 0.0f },
-            .Color = { 1.0f, 0.0f, 0.0f }
-        },
-        Vertex {
-            .Position = { 0.5f, 0.5f, 0.0f },
-            .Color = { 0.0f, 1.0f, 0.0f }
-        },
-        Vertex {
-            .Position = { -0.5f, 0.5f, 0.0f },
-            .Color = { 0.0f, 0.0f, 1.0f }
-        }
-    };
-
-    const std::array<uint32_t, 3> TRIANGLE_INDICES {
-        0, 1, 2
-    };
-
     VulkanContext::VulkanContext(platform::Window& window)
         : m_instance(),
           m_surface(m_instance.GetHandle(), window.GetHandle()),
@@ -43,24 +24,14 @@ namespace deoxy::graphics {
           },
           m_pipeline(
               m_device.GetLogical(), m_swapchain.GetColorFormat(),
-              "shaders/basic.vert.spv", "shaders/basic.frag.spv"),
-          m_vertexBuffer(
-              m_allocator, sizeof(TRIANGLE_VERTICES),
-              VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-              VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
-          ),
-          m_indexBuffer(
-              m_allocator, sizeof(TRIANGLE_INDICES),
-              VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-              VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
-          ),
-          m_indexCount(static_cast<uint32_t>(TRIANGLE_INDICES.size())) {
-        createGeometryBuffers();
+              "shaders/basic.vert.spv", "shaders/basic.frag.spv") {
     }
 
     VulkanContext::~VulkanContext() {
         const VkDevice device = m_device.GetLogical();
         if (device != VK_NULL_HANDLE) vkDeviceWaitIdle(device);
+
+        m_meshes.clear();
     }
 
     bool VulkanContext::BeginFrame() {
@@ -170,13 +141,6 @@ namespace deoxy::graphics {
 
         vulkan::VulkanFrame& frame = m_frames[m_currentFrame];
         const VkCommandBuffer commandBuffer = frame.GetCommandBuffer();
-            // TEMPORÁRIO! Futuramente, será algo tipo DrawMesh
-            const VkBuffer vertexBuffer = m_vertexBuffer.GetHandle();
-            const VkDeviceSize vertexOffset = 0;
-            vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, &vertexOffset);
-            vkCmdBindIndexBuffer(commandBuffer, m_indexBuffer.GetHandle(), 0, VK_INDEX_TYPE_UINT32);
-
-            vkCmdDrawIndexed(commandBuffer, m_indexCount, 1, 0, 0, 0);
         vkCmdEndRendering(commandBuffer);
 
         // Prepara a imagem para aparecer na tela
@@ -259,47 +223,71 @@ namespace deoxy::graphics {
         m_clearColor = color;
     }
 
-    void VulkanContext::createGeometryBuffers() {
-        // Cria o staging buffer para o vertex
-        const VkDeviceSize vertexBufferSize = sizeof(TRIANGLE_VERTICES);
-        vulkan::VulkanBuffer stagingVertexBuffer {
-            m_allocator, vertexBufferSize,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
-            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
-        };
+    MeshHandle VulkanContext::CreateMesh(std::span<const Vertex> vertices, std::span<const std::uint32_t> indices) {
+        // Primeiro procura um espaço liberado
+        for (uint32_t i = 0; i < m_meshes.size(); ++i) {
+            MeshSlot& slot = m_meshes[i];
 
-        // Copia os dados da CPU
-        stagingVertexBuffer.Upload(TRIANGLE_VERTICES.data(), vertexBufferSize);
+            if (!slot.Mesh.has_value()) {
+                slot.Mesh.emplace(
+                    m_allocator, m_commandPool, m_device.GetQueue(),
+                    vertices, indices
+                );
 
-        // Copia staging para a GPU
-        vulkan::CopyBufferImmediate(
-            m_device.GetQueue(),
-            m_commandPool,
-            stagingVertexBuffer.GetHandle(),
-            m_vertexBuffer.GetHandle(),
-            vertexBufferSize
+                return MeshHandle {
+                    .Index = i,
+                    .Generation = slot.Generation
+                };
+            }
+        }
+
+        // Se não encontrar, cria um novo
+        vulkan::CheckBool(m_meshes.size() < static_cast<size_t>(
+            MeshHandle::InvalidIndex
+        ), "Mesh storage has reached its maximum capacity");
+
+        const auto index = static_cast<uint32_t>(m_meshes.size());
+        m_meshes.emplace_back();
+
+        MeshSlot& slot = m_meshes.back();
+        slot.Mesh.emplace(
+            m_allocator, m_commandPool, m_device.GetQueue(),
+            vertices, indices
         );
 
-        // Cria o staging buffer para o index
-        const VkDeviceSize indexBufferSize = sizeof(TRIANGLE_INDICES);
-        vulkan::VulkanBuffer stagingIndexBuffer {
-            m_allocator, indexBufferSize,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
-            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
+        return MeshHandle {
+            .Index = index,
+            .Generation = slot.Generation
         };
-
-        // Copia os dados da CPU
-        stagingIndexBuffer.Upload(TRIANGLE_INDICES.data(), indexBufferSize);
-
-        // Copia staging para a GPU
-        vulkan::CopyBufferImmediate(
-            m_device.GetQueue(),
-            m_commandPool,
-            stagingIndexBuffer.GetHandle(),
-            m_indexBuffer.GetHandle(),
-            indexBufferSize
-        );
     }
+
+    void VulkanContext::DestroyMesh(MeshHandle handle) {
+        vulkan::CheckBool(!m_frameActive, "Cannot destroy a mesh during an active frame");
+
+        MeshSlot& slot = getMeshSlot(handle);
+        vulkan::CheckResult(vkDeviceWaitIdle(m_device.GetLogical()));
+
+        slot.Mesh.reset();
+        ++slot.Generation;
+    }
+
+    void VulkanContext::DrawMesh(MeshHandle handle) {
+        vulkan::CheckBool(m_frameActive, "DrawMesh must be called between BeginFrame and EndFrame");
+
+        MeshSlot& slot = getMeshSlot(handle);
+        slot.Mesh->Draw(getActiveCommandBuffer());
+    }
+
+    VulkanContext::MeshSlot& VulkanContext::getMeshSlot(MeshHandle handle) {
+        vulkan::CheckBool(handle.IsValid(), "Received an invalid mesh handle");
+        vulkan::CheckBool(handle.Index < m_meshes.size(), "Mesh handle index is out of bounds");
+
+        MeshSlot& slot = m_meshes[handle.Index];
+        vulkan::CheckBool(slot.Generation == handle.Generation, "Mesh handle generation does not match");
+        vulkan::CheckBool(slot.Mesh.has_value(), "Mesh handle refers to a destroyed mesh");
+
+        return slot;
+    }
+
+    VkCommandBuffer VulkanContext::getActiveCommandBuffer() const { return m_frames[m_currentFrame].GetCommandBuffer(); }
 }

@@ -10,13 +10,18 @@
 #include "components/vk_swapchain.hpp"
 #include "components/vk_buffer.hpp"
 
+#include "graphical/vk_mesh.hpp"
+
 #include <deoxy/graphics/color.hpp>
+#include <deoxy/graphics/mesh_handle.hpp>
 
 #include <volk.h>
 #include <vk_mem_alloc.h>
 
-#include <array>
+#include <optional>
 #include <cstdint>
+#include <vector>
+#include <array>
 
 namespace deoxy::platform {
     class Window;
@@ -35,6 +40,10 @@ namespace deoxy::graphics {
             void EndFrame();
 
             void SetClearColor(Color color);
+
+            MeshHandle CreateMesh(std::span<const Vertex> vertices, std::span<const uint32_t> indices);
+            void DestroyMesh(MeshHandle handle);
+            void DrawMesh(MeshHandle handle);
         private:
             static constexpr uint32_t FRAMES_IN_FLIGHT = 2;
 
@@ -45,8 +54,14 @@ namespace deoxy::graphics {
                 .A = 1.0f
             };
 
-            // TEMPORÁRIO: Mover para classe Mesh
-            void createGeometryBuffers();
+            struct MeshSlot {
+                std::optional<vulkan::VulkanMesh> Mesh;
+                uint32_t Generation = 0;
+            };
+
+            std::vector<MeshSlot> m_meshes;
+
+            MeshSlot& getMeshSlot(MeshHandle handle);
 
             // ORDEM É IMPORTANTE!
             // Construção: Cima pra Baixo
@@ -69,10 +84,6 @@ namespace deoxy::graphics {
             uint32_t m_activeImageIndex = 0;
             uint32_t m_currentFrame = 0;
 
-            // TEMPORÁRIO: Mover para classe Mesh
-            vulkan::VulkanBuffer m_vertexBuffer;
-            vulkan::VulkanBuffer m_indexBuffer;
-
-            uint32_t m_indexCount = 0;
+            VkCommandBuffer getActiveCommandBuffer() const;
     };
 }
