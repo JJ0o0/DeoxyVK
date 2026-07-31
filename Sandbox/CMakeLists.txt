@@ -14,7 +14,7 @@ target_include_directories(Sandbox
 set_target_properties(Sandbox
     PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY
-            "${CMAKE_BINARY_DIR}/bin"
+            "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
         VS_DEBUGGER_WORKING_DIRECTORY
             "$<TARGET_FILE_DIR:Sandbox>"
 )

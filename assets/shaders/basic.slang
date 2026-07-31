@@ -13,10 +13,19 @@ struct VertexOutput {
     float3 Color;
 };
 
+struct MeshPushConstants {
+    float4x4 ModelMatrix;
+};
+
+[[vk::push_constant]]
+ConstantBuffer<MeshPushConstants> PushConstants;
+
 [shader("vertex")]
 VertexOutput vertexMain(VertexInput input) {
     VertexOutput output;
-    output.Position = float4(input.Position, 1.0);
+
+    float4 localPosition = float4(input.Position, 1.0);
+    output.Position = mul(PushConstants.ModelMatrix, localPosition);
     output.Color = input.Color;
 
     return output;

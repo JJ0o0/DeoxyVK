@@ -1,5 +1,6 @@
 #include "vk_pipeline.hpp"
 #include "vk_helper.hpp"
+#include "../shading/vk_push_constants.hpp"
 
 #include <deoxy/graphics/vertex.hpp>
 
@@ -168,13 +169,20 @@ namespace deoxy::graphics::vulkan {
                 .pAttachments = &colorBlendAttachment
             };
 
+            // Criando informações das Push Constants
+            VkPushConstantRange pushConstantRange {
+                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                .offset = 0,
+                .size = sizeof(MeshPushConstants)
+            };
+
             // Criando o layout da pipeline
             VkPipelineLayoutCreateInfo layoutCI {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
                 .setLayoutCount = 0,
                 .pSetLayouts = nullptr,
-                .pushConstantRangeCount = 0,
-                .pPushConstantRanges = nullptr
+                .pushConstantRangeCount = 1,
+                .pPushConstantRanges = &pushConstantRange,
             };
 
             CheckResult(vkCreatePipelineLayout(m_device, &layoutCI, nullptr, &m_layout));

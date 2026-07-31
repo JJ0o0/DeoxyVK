@@ -1,6 +1,7 @@
 #include "vk_context.hpp"
 #include "components/vk_helper.hpp"
 #include "components/vk_commands.hpp"
+#include "shading/vk_push_constants.hpp"
 
 #include <deoxy/platform/window.hpp>
 #include <deoxy/platform/logger.hpp>
@@ -271,11 +272,25 @@ namespace deoxy::graphics {
         ++slot.Generation;
     }
 
-    void VulkanContext::DrawMesh(MeshHandle handle) {
+    void VulkanContext::DrawMesh(MeshHandle handle, const core::math::Mat4& modelMatrix) {
         vulkan::CheckBool(m_frameActive, "DrawMesh must be called between BeginFrame and EndFrame");
 
         MeshSlot& slot = getMeshSlot(handle);
-        slot.Mesh->Draw(getActiveCommandBuffer());
+        VkCommandBuffer commandBuffer = getActiveCommandBuffer();
+
+        vulkan::MeshPushConstants pushConstants {
+            .ModelMatrix = modelMatrix
+        };
+
+        vkCmdPushConstants(
+            commandBuffer,
+            m_pipeline.GetLayout(),
+            VK_SHADER_STAGE_VERTEX_BIT,
+            0, sizeof(vulkan::MeshPushConstants),
+            &pushConstants
+        );
+
+        slot.Mesh->Draw(commandBuffer);
     }
 
     VulkanContext::MeshSlot& VulkanContext::getMeshSlot(MeshHandle handle) {
