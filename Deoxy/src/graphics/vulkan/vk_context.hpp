@@ -14,7 +14,7 @@
 
 #include <deoxy/graphics/mesh_handle.hpp>
 #include <deoxy/graphics/color.hpp>
-#include <deoxy/core/math.hpp>
+#include <deoxy/math/math.hpp>
 
 #include <volk.h>
 #include <vk_mem_alloc.h>
@@ -44,7 +44,7 @@ namespace deoxy::graphics {
 
             MeshHandle CreateMesh(std::span<const Vertex> vertices, std::span<const uint32_t> indices);
             void DestroyMesh(MeshHandle handle);
-            void DrawMesh(MeshHandle handle, const core::math::Mat4& modelMatrix);
+            void DrawMesh(MeshHandle handle, const math::Mat4& modelMatrix);
         private:
             static constexpr uint32_t FRAMES_IN_FLIGHT = 2;
 

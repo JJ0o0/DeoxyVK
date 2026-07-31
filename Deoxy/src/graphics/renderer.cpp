@@ -40,7 +40,7 @@ namespace deoxy::graphics {
         m_impl->Context.DestroyMesh(mesh);
     }
 
-    void Renderer::DrawMesh(MeshHandle mesh, const core::math::Mat4& modelMatrix) {
+    void Renderer::DrawMesh(MeshHandle mesh, const math::Mat4& modelMatrix) {
         m_impl->Context.DrawMesh(mesh, modelMatrix);
     }
 }

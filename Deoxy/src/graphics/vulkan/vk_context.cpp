@@ -272,7 +272,7 @@ namespace deoxy::graphics {
         ++slot.Generation;
     }
 
-    void VulkanContext::DrawMesh(MeshHandle handle, const core::math::Mat4& modelMatrix) {
+    void VulkanContext::DrawMesh(MeshHandle handle, const math::Mat4& modelMatrix) {
         vulkan::CheckBool(m_frameActive, "DrawMesh must be called between BeginFrame and EndFrame");
 
         MeshSlot& slot = getMeshSlot(handle);

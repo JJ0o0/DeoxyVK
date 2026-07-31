@@ -1,6 +1,4 @@
 #include <sandbox_application.hpp>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 
 const auto CLEAR_COLOR_0 = ParseHexColor32("#1B1B1E").value(); // Carbon Black
 const auto CLEAR_COLOR_1 = ParseHexColor32("#E4E4E4").value(); // Ash White
@@ -53,7 +51,7 @@ void SandboxApplication::OnUpdate(float deltaTime) {
     const auto& input = GetInput();
 
     const float movement_speed = 1.5f;
-    math::Vec2 direction{0.0f};
+    Vec2 direction{0.0f};
     if (input.IsPressed(Key::W)) direction.y -= 1.0f;
     if (input.IsPressed(Key::S)) direction.y += 1.0f;
     if (input.IsPressed(Key::D)) direction.x += 1.0f;
@@ -73,10 +71,10 @@ void SandboxApplication::OnUpdate(float deltaTime) {
 }
 
 void SandboxApplication::OnRender() {
-    math::Mat4 model{1.0f};
-    model = glm::translate(model, m_position);
-    model = glm::rotate(model, math::ToRadians(m_rotation), math::Vec3(0, 0, 1));
-    model = glm::scale(model, math::Vec3{0.5f});
+    Mat4 model{1.0f};
+    model = Translate(model, m_position);
+    model = RotateZ(model, ToRadians(m_rotation));
+    model = Scale(model, Vec3{0.5f});
 
     GetRenderer().DrawMesh(m_quad, model);
 }

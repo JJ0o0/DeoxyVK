@@ -50,17 +50,6 @@ function(deoxy_setup_dependencies)
         FIND_PACKAGE_ARGS CONFIG
     )
 
-    # GLM
-    FetchContent_Declare(
-        glm
-
-        GIT_REPOSITORY https://github.com/g-truc/glm.git
-        GIT_TAG 1.0.3
-        GIT_SHALLOW TRUE
-
-        FIND_PACKAGE_ARGS CONFIG
-    )
-
     # SPDLOG
     set(SPDLOG_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE)
     set(SPDLOG_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -89,7 +78,6 @@ function(deoxy_setup_dependencies)
         SDL3
         volk
         VulkanMemoryAllocator
-        glm
         spdlog
         tinyfiledialogs
     )

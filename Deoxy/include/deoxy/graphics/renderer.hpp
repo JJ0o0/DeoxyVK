@@ -3,7 +3,7 @@
 #include <deoxy/graphics/mesh_handle.hpp>
 #include <deoxy/graphics/vertex.hpp>
 #include <deoxy/graphics/color.hpp>
-#include <deoxy/core/math.hpp>
+#include <deoxy/math/math.hpp>
 
 #include <cstdint>
 #include <memory>
@@ -27,7 +27,7 @@ namespace deoxy::graphics {
 
             MeshHandle CreateMesh(std::span<const Vertex> vertices, std::span<const uint32_t> indices);
             void DestroyMesh(MeshHandle mesh);
-            void DrawMesh(MeshHandle mesh, const core::math::Mat4& modelMatrix);
+            void DrawMesh(MeshHandle mesh, const math::Mat4& modelMatrix);
         private:
             struct Impl;
             std::unique_ptr<Impl> m_impl;

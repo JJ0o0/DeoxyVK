@@ -54,7 +54,6 @@ target_link_libraries(Deoxy
     PRIVATE
         SDL3::SDL3
         volk::volk
-        glm::glm
         GPUOpen::VulkanMemoryAllocator
 
         spdlog::spdlog

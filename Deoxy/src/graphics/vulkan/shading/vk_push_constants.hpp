@@ -1,9 +1,9 @@
 #pragma once
 
-#include <deoxy/core/math.hpp>
+#include <deoxy/math/math.hpp>
 
 namespace deoxy::graphics::vulkan {
     struct MeshPushConstants {
-        core::math::Mat4 ModelMatrix;
+        math::Mat4 ModelMatrix;
     };
 }
