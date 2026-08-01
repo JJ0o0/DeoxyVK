@@ -54,12 +54,7 @@ namespace deoxy::graphics {
         private:
             static constexpr uint32_t FRAMES_IN_FLIGHT = 2;
 
-            Color m_clearColor {
-                .R = 0.05f,
-                .G = 0.1f,
-                .B = 0.2f,
-                .A = 1.0f
-            };
+            Color m_clearColor { 0.05f, 0.1f, 0.2f };
 
             struct MeshSlot {
                 std::optional<vulkan::VulkanMesh> Mesh;

@@ -13,6 +13,11 @@ namespace deoxy::graphics {
         float G = 1.0f;
         float B = 1.0f;
         float A = 1.0f;
+
+        constexpr Color() = default;
+        constexpr Color(float r, float g, float b) : R(r), G(g), B(b), A(1.0f) {}
+        constexpr Color(float r, float g, float b, float a) : R(r), G(g), B(b), A(a) {}
+        explicit constexpr Color(float value) : R(value), G(value), B(value), A(value) {}
     };
 
     // 0 - 255
@@ -21,6 +26,11 @@ namespace deoxy::graphics {
         uint8_t G = 255;
         uint8_t B = 255;
         uint8_t A = 255;
+
+        constexpr Color32() = default;
+        constexpr Color32(uint8_t r, uint8_t g, uint8_t b) : R(r), G(g), B(b), A(255) {}
+        constexpr Color32(uint8_t r, uint8_t g, uint8_t b, uint8_t a) : R(r), G(g), B(b), A(a) {}
+        explicit constexpr Color32(uint8_t value) : R(value), G(value), B(value), A(value) {}
 
         bool operator==(const Color32&) const = default;
     };
@@ -49,10 +59,10 @@ namespace deoxy::graphics {
         };
 
         return Color {
-            .R = toLinear(color32.R),
-            .G = toLinear(color32.G),
-            .B = toLinear(color32.B),
-            .A = static_cast<float>(color32.A) / 255.0f,
+            toLinear(color32.R),
+            toLinear(color32.G),
+            toLinear(color32.B),
+            static_cast<float>(color32.A) / 255.0f,
         };
     }
 
@@ -64,10 +74,10 @@ namespace deoxy::graphics {
         };
 
         return Color32 {
-            .R = toByte(color.R),
-            .G = toByte(color.G),
-            .B = toByte(color.B),
-            .A = toByte(color.A),
+            toByte(color.R),
+            toByte(color.G),
+            toByte(color.B),
+            toByte(color.A),
         };
     }
 
@@ -111,10 +121,10 @@ namespace deoxy::graphics {
         }
 
         return Color32 {
-            .R = *red,
-            .G = *green,
-            .B = *blue,
-            .A = alpha
+            *red,
+            *green,
+            *blue,
+            alpha
         };
     }
 

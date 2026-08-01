@@ -3,14 +3,14 @@ struct VertexInput {
     float3 Position;
 
     [vk::location(1)]
-    float3 Color;
+    float4 Color;
 };
 
 struct VertexOutput {
     float4 Position : SV_Position;
 
     [vk::location(0)]
-    float3 Color;
+    float4 Color;
 };
 
 struct CameraUniformData {
@@ -43,5 +43,5 @@ VertexOutput vertexMain(VertexInput input) {
 
 [shader("fragment")]
 float4 fragmentMain(VertexOutput input) : SV_Target {
-    return float4(input.Color, 1.0);
+    return input.Color;
 }

@@ -2,30 +2,6 @@
 
 const auto CLEAR_COLOR_0 = ParseHexColor32("#1B1B1E").value(); // Carbon Black
 
-const std::array<Vertex, 4> QUAD_VERTICES {
-    Vertex {
-        .Position = { 0.5f, -0.5f, 0.0f },
-        .Color = { 1.0f, 0.0f, 0.0f }
-    },
-    Vertex {
-        .Position = { 0.5f, 0.5f, 0.0f },
-        .Color = { 0.0f, 1.0f, 0.0f }
-    },
-    Vertex {
-        .Position = { -0.5f, -0.5f, 0.0f },
-        .Color = { 0.0f, 0.0f, 1.0f }
-    },
-    Vertex {
-        .Position = { -0.5f, 0.5f, 0.0f },
-        .Color = { 1.0f, 0.0f, 1.0f }
-    }
-};
-
-const std::array<uint32_t, 6> QUAD_INDICES {
-    0, 1, 2,
-    1, 3, 2
-};
-
 SandboxApplication::SandboxApplication()
     : Application({
         .Title = "DeoxyVK Sandbox",
@@ -40,7 +16,8 @@ void SandboxApplication::OnStart() {
     auto& renderer = GetRenderer();
     renderer.SetClearColor(CLEAR_COLOR_0);
 
-    m_quad = renderer.CreateMesh(QUAD_VERTICES, QUAD_INDICES);
+    MeshData cube = MeshGenerator::CreateCube(1.0f);
+    m_quad = renderer.CreateMesh(cube.Vertices, cube.Indices);
 
     GetWindow().SetRelativeMouseMode(true);
 }
@@ -50,7 +27,6 @@ void SandboxApplication::OnUpdate(float deltaTime) {
     const auto& input = GetInput();
 
     const float rotation_speed = 20.0f;
-    if (m_rotation > 360) m_rotation = 0;
     m_rotation += rotation_speed * deltaTime;
 
     m_camera.Update(input, deltaTime);
@@ -62,9 +38,12 @@ void SandboxApplication::OnUpdate(float deltaTime) {
 void SandboxApplication::OnRender() {
     Mat4 model{1.0f};
     model = Translate(model, m_position);
+    model = RotateX(model, ToRadians(m_rotation * 0.8f));
+    model = RotateY(model, ToRadians(m_rotation * 0.9f));
     model = RotateZ(model, ToRadians(m_rotation));
     model = Scale(model, Vec3{0.5f});
 
+    GetRenderer().DrawMesh(m_quad, model);
     GetRenderer().DrawMesh(m_quad, model);
 }
 

@@ -6,7 +6,7 @@ void Camera::Update(const Input& input, float deltaTime) {
 
     m_yaw += mouseDelta.x * m_properties.Sensitivity;
     m_pitch -= mouseDelta.y * m_properties.Sensitivity;
-    m_pitch = std::clamp(m_pitch, -89.0f, 89.0f);
+    m_pitch = Clamp(m_pitch, -89.0f, 89.0f);
 
     const float yaw = ToRadians(m_yaw);
     const float pitch = ToRadians(m_pitch);
@@ -47,10 +47,10 @@ void Camera::Update(const Input& input, float deltaTime) {
     const float zoomStep = 5.0f;
 
     m_targetFov -= scrollY * zoomStep;
-    m_targetFov = std::clamp(m_targetFov, m_properties.MinimumFov, m_properties.MaximumFov);
+    m_targetFov = Clamp(m_targetFov, m_properties.MinimumFov, m_properties.MaximumFov);
 
     const float zoomLerpSpeed = 10.0f;
-    const float zoomWeight = std::clamp(zoomLerpSpeed * deltaTime, 0.0f, 1.0f);
+    const float zoomWeight = Clamp(zoomLerpSpeed * deltaTime, 0.0f, 1.0f);
 
     m_fov = Lerp(m_fov, m_targetFov, zoomWeight);
 }

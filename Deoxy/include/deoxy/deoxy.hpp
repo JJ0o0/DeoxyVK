@@ -8,6 +8,9 @@
 
 #include <deoxy/graphics/renderer.hpp>
 #include <deoxy/graphics/color.hpp>
+#include <deoxy/graphics/mesh_data.hpp>
+#include <deoxy/graphics/mesh_generator.hpp>
+#include <deoxy/graphics/mesh_handle.hpp>
 
 #include <deoxy/platform/logger.hpp>
 

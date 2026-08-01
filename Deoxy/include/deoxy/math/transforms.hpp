@@ -14,6 +14,32 @@ namespace deoxy::math {
         return matrix * translationMatrix;
     }
 
+    inline Mat4 RotateX(const Mat4& matrix, float radians) {
+        float thetaCos = Cos(radians);
+        float thetaSin = Sin(radians);
+
+        Mat4 rotationMatrix{1.0f};
+        rotationMatrix(1, 1) = thetaCos;
+        rotationMatrix(1, 2) = -thetaSin;
+        rotationMatrix(2, 1) = thetaSin;
+        rotationMatrix(2, 2) = thetaCos;
+
+        return matrix * rotationMatrix;
+    }
+
+    inline Mat4 RotateY(const Mat4& matrix, float radians) {
+        float thetaCos = Cos(radians);
+        float thetaSin = Sin(radians);
+
+        Mat4 rotationMatrix{1.0f};
+        rotationMatrix(0, 0) = thetaCos;
+        rotationMatrix(0, 2) = thetaSin;
+        rotationMatrix(2, 0) = -thetaSin;
+        rotationMatrix(2, 2) = thetaCos;
+
+        return matrix * rotationMatrix;
+    }
+
     inline Mat4 RotateZ(const Mat4& matrix, float radians) {
         float thetaCos = Cos(radians);
         float thetaSin = Sin(radians);

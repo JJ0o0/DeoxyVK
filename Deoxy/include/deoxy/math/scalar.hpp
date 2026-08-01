@@ -2,6 +2,7 @@
 
 #include <deoxy/math/constants.hpp>
 
+#include <cassert>
 #include <cmath>
 
 namespace deoxy::math {
@@ -17,7 +18,14 @@ namespace deoxy::math {
     inline float Atan(float value) { return std::atan(value); }
     inline float Atan2(float y, float x) { return std::atan2(y, x); }
 
-    inline float Lerp(float from, float to, float weight) {
-        return from + (to - from) * weight;
+    inline float Clamp(float value, float min, float max) {
+        assert(min <= max);
+
+        if (value < min) return min;
+        if (value > max) return max;
+
+        return value;
     }
+
+    inline float Lerp(float from, float to, float weight) { return from + (to - from) * weight; }
 }

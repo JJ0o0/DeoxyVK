@@ -1,6 +1,7 @@
 #pragma once
 
 #include <deoxy/graphics/mesh_handle.hpp>
+#include <deoxy/graphics/mesh_data.hpp>
 #include <deoxy/graphics/vertex.hpp>
 #include <deoxy/graphics/color.hpp>
 #include <deoxy/math/math.hpp>
@@ -26,6 +27,7 @@ namespace deoxy::graphics {
             void SetClearColor(Color32 color32);
 
             MeshHandle CreateMesh(std::span<const Vertex> vertices, std::span<const uint32_t> indices);
+            MeshHandle CreateMesh(const MeshData& data);
             void DestroyMesh(MeshHandle mesh);
             void DrawMesh(MeshHandle mesh, const math::Mat4& modelMatrix);
 

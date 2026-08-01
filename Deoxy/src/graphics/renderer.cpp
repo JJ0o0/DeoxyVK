@@ -36,6 +36,10 @@ namespace deoxy::graphics {
         return m_impl->Context.CreateMesh(vertices, indices);
     }
 
+    MeshHandle Renderer::CreateMesh(const MeshData& data) {
+        return m_impl->Context.CreateMesh(data.Vertices, data.Indices);
+    }
+
     void Renderer::DestroyMesh(MeshHandle mesh) {
         m_impl->Context.DestroyMesh(mesh);
     }
