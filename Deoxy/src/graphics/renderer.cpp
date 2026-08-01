@@ -1,4 +1,5 @@
 #include <deoxy/graphics/renderer.hpp>
+#include <deoxy/graphics/image_loader.hpp>
 
 #include "vulkan/vk_context.hpp"
 
@@ -44,8 +45,17 @@ namespace deoxy::graphics {
         m_impl->Context.DestroyMesh(mesh);
     }
 
-    void Renderer::DrawMesh(MeshHandle mesh, const math::Mat4& modelMatrix) {
-        m_impl->Context.DrawMesh(mesh, modelMatrix);
+    void Renderer::DrawMesh(MeshHandle mesh, TextureHandle texture, const math::Mat4& modelMatrix) {
+        m_impl->Context.DrawMesh(mesh, texture, modelMatrix);
+    }
+
+    TextureHandle Renderer::CreateTexture(const std::filesystem::path& path) {
+        const ImageData data = ImageLoader::Load(path);
+        return m_impl->Context.CreateTexture(data);
+    }
+
+    void Renderer::DestroyTexture(TextureHandle handle) {
+        m_impl->Context.DestroyTexture(handle);
     }
 
     void Renderer::SetCamera(const math::Mat4& view, const math::Mat4& projection) {

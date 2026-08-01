@@ -19,5 +19,6 @@ class SandboxApplication : public Application {
 
         Camera m_camera;
 
-        MeshHandle m_quad;
+        MeshHandle m_mesh;
+        TextureHandle m_checker;
 };

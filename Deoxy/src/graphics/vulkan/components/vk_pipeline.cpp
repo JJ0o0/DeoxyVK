@@ -14,7 +14,7 @@ namespace deoxy::graphics::vulkan {
     VulkanPipeline::VulkanPipeline(
         VkDevice device,
         VkFormat colorFormat, VkFormat depthFormat,
-        VkDescriptorSetLayout cameraSetLayout,
+        VkDescriptorSetLayout cameraSetLayout, VkDescriptorSetLayout textureSetLayout,
         const std::filesystem::path& vertexShaderPath,
         const std::filesystem::path& fragmentShaderPath
     ) : m_device(device) {
@@ -22,14 +22,14 @@ namespace deoxy::graphics::vulkan {
         CheckBool(colorFormat != VK_FORMAT_UNDEFINED, "Pipeline received an undefined color format");
         CheckBool(depthFormat != VK_FORMAT_UNDEFINED, "Pipeline received an undefined depth format");
 
-        create(colorFormat, depthFormat, cameraSetLayout, vertexShaderPath, fragmentShaderPath);
+        create(colorFormat, depthFormat, cameraSetLayout, textureSetLayout, vertexShaderPath, fragmentShaderPath);
     }
 
     VulkanPipeline::~VulkanPipeline() { destroy(); }
 
     void VulkanPipeline::create(
         VkFormat colorFormat, VkFormat depthFormat,
-        VkDescriptorSetLayout cameraSetLayout,
+        VkDescriptorSetLayout cameraSetLayout, VkDescriptorSetLayout textureSetLayout,
         const std::filesystem::path& vertexShaderPath,
         const std::filesystem::path& fragmentShaderPath
     ) {
@@ -71,7 +71,7 @@ namespace deoxy::graphics::vulkan {
             };
 
             // Define o que cada parte de Vertex é no shader
-            std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions {
+            std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions {
                 VkVertexInputAttributeDescription {
                     .location = 0,
                     .binding = 0,
@@ -83,6 +83,12 @@ namespace deoxy::graphics::vulkan {
                     .binding = 0,
                     .format = VK_FORMAT_R32G32B32A32_SFLOAT,
                     .offset = offsetof(Vertex, Tint)
+                },
+                VkVertexInputAttributeDescription {
+                    .location = 2,
+                    .binding = 0,
+                    .format = VK_FORMAT_R32G32_SFLOAT,
+                    .offset = offsetof(Vertex, UV)
                 },
             };
 
@@ -181,10 +187,15 @@ namespace deoxy::graphics::vulkan {
             };
 
             // Criando o layout da pipeline
+            std::array<VkDescriptorSetLayout, 2> setLayouts {
+                cameraSetLayout,
+                textureSetLayout
+            };
+
             VkPipelineLayoutCreateInfo layoutCI {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-                .setLayoutCount = 1,
-                .pSetLayouts = &cameraSetLayout,
+                .setLayoutCount = static_cast<uint32_t>(setLayouts.size()),
+                .pSetLayouts = setLayouts.data(),
                 .pushConstantRangeCount = 1,
                 .pPushConstantRanges = &pushConstantRange,
             };

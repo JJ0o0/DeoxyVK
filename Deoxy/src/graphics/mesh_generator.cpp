@@ -9,45 +9,143 @@
 #include <vector>
 
 namespace deoxy::graphics {
-    // Como ainda não tem normais, não precisamos de tantos vertices
     MeshData MeshGenerator::CreateCube(float size) {
         assert(size > 0.0f);
 
         const float half = size * 0.5f;
 
         std::vector<Vertex> vertices {
-            Vertex {
-                .Position = math::Vec3{-half, -half, half},
-                .Tint = Color{1.0f, 0.0f, 0.0f}
+            // +Z
+            Vertex{
+                .Position = {-half, -half,  half},
+                .Tint = Color{1.0f},
+                .UV = {0.0f, 0.0f}
             },
-            Vertex {
-                .Position = math::Vec3{half, -half, half},
-                .Tint = Color{0.0f, 1.0f, 0.0f}
+            Vertex{
+                .Position = { half, -half,  half},
+                .Tint = Color{1.0f},
+                .UV = {1.0f, 0.0f}
             },
-            Vertex {
-                .Position = math::Vec3{half, half, half},
-                .Tint = Color{0.0f, 0.0f, 1.0f}
+            Vertex{
+                .Position = { half,  half,  half},
+                .Tint = Color{1.0f},
+                .UV = {1.0f, 1.0f}
             },
-            Vertex {
-                .Position = math::Vec3{-half, half, half},
-                .Tint = Color{1.0f, 0.0f, 1.0f}
+            Vertex{
+                .Position = {-half,  half,  half},
+                .Tint = Color{1.0f},
+                .UV = {0.0f, 1.0f}
             },
-            Vertex {
-                .Position = math::Vec3{-half, -half, -half},
-                .Tint = Color{1.0f, 1.0f, 0.0f}
+
+            // -Z
+            Vertex{
+                .Position = { half, -half, -half},
+                .Tint = Color{1.0f},
+                .UV = {0.0f, 0.0f}
             },
-            Vertex {
-                .Position = math::Vec3{half, -half, -half},
-                .Tint = Color{0.0f, 1.0f, 1.0f}
+            Vertex{
+                .Position = {-half, -half, -half},
+                .Tint = Color{1.0f},
+                .UV = {1.0f, 0.0f}
             },
-            Vertex {
-                .Position = math::Vec3{half, half, -half},
-                .Tint = Color{1.0f}
+            Vertex{
+                .Position = {-half,  half, -half},
+                .Tint = Color{1.0f},
+                .UV = {1.0f, 1.0f}
             },
-            Vertex {
-                .Position = math::Vec3{-half, half, -half},
-                .Tint = Color{1.0f, 0.6f, 0.0f}
+            Vertex{
+                .Position = { half,  half, -half},
+                .Tint = Color{1.0f},
+                .UV = {0.0f, 1.0f}
             },
+
+            // +X
+            Vertex{
+                .Position = {half, -half,  half},
+                .Tint = Color{1.0f},
+                .UV = {0.0f, 0.0f}
+            },
+            Vertex{
+                .Position = {half, -half, -half},
+                .Tint = Color{1.0f},
+                .UV = {1.0f, 0.0f}
+            },
+            Vertex{
+                .Position = {half,  half, -half},
+                .Tint = Color{1.0f},
+                .UV = {1.0f, 1.0f}
+            },
+            Vertex{
+                .Position = {half,  half,  half},
+                .Tint = Color{1.0f},
+                .UV = {0.0f, 1.0f}
+            },
+
+            // -X
+            Vertex{
+                .Position = {-half, -half, -half},
+                .Tint = Color{1.0f},
+                .UV = {0.0f, 0.0f}
+            },
+            Vertex{
+                .Position = {-half, -half,  half},
+                .Tint = Color{1.0f},
+                .UV = {1.0f, 0.0f}
+            },
+            Vertex{
+                .Position = {-half,  half,  half},
+                .Tint = Color{1.0f},
+                .UV = {1.0f, 1.0f}
+            },
+            Vertex{
+                .Position = {-half,  half, -half},
+                .Tint = Color{1.0f},
+                .UV = {0.0f, 1.0f}
+            },
+
+            // +Y
+            Vertex{
+                .Position = {-half, half,  half},
+                .Tint = Color{1.0f},
+                .UV = {0.0f, 0.0f}
+            },
+            Vertex{
+                .Position = { half, half,  half},
+                .Tint = Color{1.0f},
+                .UV = {1.0f, 0.0f}
+            },
+            Vertex{
+                .Position = { half, half, -half},
+                .Tint = Color{1.0f},
+                .UV = {1.0f, 1.0f}
+            },
+            Vertex{
+                .Position = {-half, half, -half},
+                .Tint = Color{1.0f},
+                .UV = {0.0f, 1.0f}
+            },
+
+            // -Y
+            Vertex{
+                .Position = {-half, -half, -half},
+                .Tint = Color{1.0f},
+                .UV = {0.0f, 0.0f}
+            },
+            Vertex{
+                .Position = { half, -half, -half},
+                .Tint = Color{1.0f},
+                .UV = {1.0f, 0.0f}
+            },
+            Vertex{
+                .Position = { half, -half,  half},
+                .Tint = Color{1.0f},
+                .UV = {1.0f, 1.0f}
+            },
+            Vertex{
+                .Position = {-half, -half,  half},
+                .Tint = Color{1.0f},
+                .UV = {0.0f, 1.0f}
+            }
         };
 
         std::vector<uint32_t> indices {
@@ -56,24 +154,24 @@ namespace deoxy::graphics {
             0, 2, 3,
 
             // -Z
-            5, 4, 7,
-            5, 7, 6,
+            4, 5, 6,
+            4, 6, 7,
 
             // +X
-            1, 5, 6,
-            1, 6, 2,
+            8, 9, 10,
+            8, 10, 11,
 
             // -X
-            4, 0, 3,
-            4, 3, 7,
+            12, 13, 14,
+            12, 14, 15,
 
             // +Y
-            3, 2, 6,
-            3, 6, 7,
+            16, 17, 18,
+            16, 18, 19,
 
             // -Y
-            4, 5, 1,
-            4, 1, 0
+            20, 21, 22,
+            20, 22, 23
         };
 
         return MeshData { std::move(vertices), std::move(indices) };

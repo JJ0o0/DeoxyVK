@@ -4,6 +4,7 @@ add_library(Deoxy::Deoxy ALIAS Deoxy)
 target_sources(Deoxy
     PRIVATE
         "src/vma_implementation.cpp"
+        "src/stb_implementation.cpp"
 
         "src/core/application.cpp"
 
@@ -20,6 +21,9 @@ target_sources(Deoxy
         "src/graphics/vulkan/components/vk_depth_buffer.cpp"
         "src/graphics/vulkan/components/vk_commands.cpp"
         "src/graphics/vulkan/components/vk_descriptor_pool.cpp"
+        "src/graphics/vulkan/components/vk_image.cpp"
+        "src/graphics/vulkan/components/vk_sampler.cpp"
+        "src/graphics/vulkan/components/vk_texture.cpp"
 
         "src/graphics/vulkan/graphical/vk_mesh.cpp"
 
@@ -27,6 +31,7 @@ target_sources(Deoxy
 
         "src/graphics/renderer.cpp"
         "src/graphics/mesh_generator.cpp"
+        "src/graphics/image_loader.cpp"
 
         "src/input/input.cpp"
 
@@ -50,9 +55,6 @@ target_compile_definitions(Deoxy
     PUBLIC
         # Necessário para usar Volk em vez dos protótipos Vulkan
         VK_NO_PROTOTYPES
-
-        # Faz o GLM usar profundidade Vulkan de 0 até 1
-        GLM_FORCE_DEPTH_ZERO_TO_ONE
 )
 
 target_link_libraries(Deoxy
@@ -63,4 +65,5 @@ target_link_libraries(Deoxy
 
         spdlog::spdlog
         tinyfiledialogs::tinyfiledialogs
+        stb::stb
 )

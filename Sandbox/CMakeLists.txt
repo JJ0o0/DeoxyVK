@@ -20,6 +20,7 @@ set_target_properties(Sandbox
             "$<TARGET_FILE_DIR:Sandbox>"
 )
 
+deoxy_copy_assets(Sandbox)
 deoxy_compile_shader(
     Sandbox
     basic

@@ -10,6 +10,7 @@
 #include "components/vk_swapchain.hpp"
 #include "components/vk_buffer.hpp"
 #include "components/vk_descriptor_pool.hpp"
+#include "components/vk_texture.hpp"
 
 #include "graphical/vk_mesh.hpp"
 
@@ -17,6 +18,7 @@
 #include "shading/vk_descriptor_set_layout.hpp"
 
 #include <deoxy/graphics/mesh_handle.hpp>
+#include <deoxy/graphics/texture_handle.hpp>
 #include <deoxy/graphics/color.hpp>
 #include <deoxy/math/math.hpp>
 
@@ -27,6 +29,7 @@
 #include <cstdint>
 #include <vector>
 #include <array>
+#include <span>
 
 namespace deoxy::platform {
     class Window;
@@ -48,11 +51,15 @@ namespace deoxy::graphics {
 
             MeshHandle CreateMesh(std::span<const Vertex> vertices, std::span<const uint32_t> indices);
             void DestroyMesh(MeshHandle handle);
-            void DrawMesh(MeshHandle handle, const math::Mat4& modelMatrix);
+            void DrawMesh(MeshHandle meshHandle, TextureHandle textureHandle, const math::Mat4& modelMatrix);
+
+            TextureHandle CreateTexture(const ImageData& data);
+            void DestroyTexture(TextureHandle handle);
 
             void SetCamera(const math::Mat4& view, const math::Mat4& projection);
         private:
             static constexpr uint32_t FRAMES_IN_FLIGHT = 2;
+            static constexpr uint32_t MAX_TEXTURES = 256;
 
             Color m_clearColor { 0.05f, 0.1f, 0.2f };
 
@@ -61,8 +68,16 @@ namespace deoxy::graphics {
                 uint32_t Generation = 0;
             };
 
-            std::vector<MeshSlot> m_meshes;
             MeshSlot& getMeshSlot(MeshHandle handle);
+
+            struct TextureSlot {
+                std::optional<vulkan::VulkanTexture> Texture;
+                VkDescriptorSet DescriptorSet = VK_NULL_HANDLE;
+                uint32_t Generation = 1;
+            };
+
+            TextureSlot& getTextureSlot(TextureHandle handle);
+            void initializeTextureSlot(TextureSlot& slot, const ImageData& data);
 
             void updateCameraDescriptorSets();
 
@@ -80,8 +95,13 @@ namespace deoxy::graphics {
 
             vulkan::VulkanDescriptorSetLayout m_cameraSetLayout;
             vulkan::VulkanDescriptorPool m_descriptorPool;
+            vulkan::VulkanDescriptorSetLayout m_textureSetLayout;
+            vulkan::VulkanDescriptorPool m_textureDescriptorPool;
             std::array<vulkan::VulkanFrame, FRAMES_IN_FLIGHT> m_frames;
             vulkan::VulkanPipeline m_pipeline;
+
+            std::vector<MeshSlot> m_meshes;
+            std::vector<TextureSlot> m_textures;
 
             bool m_frameActive = false;
             bool m_swapchainSuboptimal = false;

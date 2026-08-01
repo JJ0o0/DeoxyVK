@@ -1,6 +1,7 @@
 #pragma once
 
 #include <volk.h>
+#include <cstdint>
 
 namespace deoxy::graphics::vulkan {
     class VulkanCommandPool;
@@ -11,6 +12,14 @@ namespace deoxy::graphics::vulkan {
         const VulkanCommandPool& commandPool,
         VkBuffer src, VkBuffer dest,
         VkDeviceSize size
+    );
+
+    // Mesma coisa de CopyBufferImmediate, só que para Image
+    void CopyBufferToImageImmediate(
+        VkQueue queue,
+        const VulkanCommandPool& commandPool,
+        VkBuffer src, VkImage dest,
+        uint32_t width, uint32_t height
     );
 
     // Grava um comando no command buffer

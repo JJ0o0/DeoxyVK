@@ -74,12 +74,22 @@ function(deoxy_setup_dependencies)
         GIT_TAG 58f4a2
     )
 
+    # STB
+    FetchContent_Declare(
+        stb
+
+        GIT_REPOSITORY https://github.com/nothings/stb.git
+        GIT_TAG master
+        GIT_SHALLOW TRUE
+    )
+
     FetchContent_MakeAvailable(
         SDL3
         volk
         VulkanMemoryAllocator
         spdlog
         tinyfiledialogs
+        stb
     )
 
     # Normaliza o Volk
@@ -110,5 +120,16 @@ function(deoxy_setup_dependencies)
                     shell32
             )
         endif()
+    endif()
+
+    # Criar target header only para stb
+    if(NOT TARGET stb::stb)
+        add_library(deoxy_stb INTERFACE)
+        add_library(stb::stb ALIAS deoxy_stb)
+
+        target_include_directories(deoxy_stb
+            SYSTEM INTERFACE
+                "${stb_SOURCE_DIR}"
+        )
     endif()
 endfunction()

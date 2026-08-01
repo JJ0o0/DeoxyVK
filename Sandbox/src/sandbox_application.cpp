@@ -17,7 +17,8 @@ void SandboxApplication::OnStart() {
     renderer.SetClearColor(CLEAR_COLOR_0);
 
     MeshData cube = MeshGenerator::CreateCube(1.0f);
-    m_quad = renderer.CreateMesh(cube.Vertices, cube.Indices);
+    m_mesh = renderer.CreateMesh(cube);
+    m_checker = renderer.CreateTexture("assets/textures/checker.png");
 
     GetWindow().SetRelativeMouseMode(m_mouseLocked);
 }
@@ -48,18 +49,13 @@ void SandboxApplication::OnRender() {
     model = RotateZ(model, ToRadians(m_rotation));
     model = Scale(model, Vec3{0.5f});
 
-    GetRenderer().DrawMesh(m_quad, model);
-
-    Mat4 model2{1.0f};
-    model2 = Translate(model2, Vec3{0.0f, 0.0f, -1.0f});
-    model2 = RotateX(model2, ToRadians(m_rotation * 0.8f));
-    model2 = RotateY(model2, ToRadians(m_rotation * 0.9f));
-    model2 = RotateZ(model2, ToRadians(m_rotation));
-    model2 = Scale(model2, Vec3{0.5f});
-
-    GetRenderer().DrawMesh(m_quad, model2);
+    GetRenderer().DrawMesh(m_mesh, m_checker, model);
 }
 
 void SandboxApplication::OnQuit() {
+    auto& renderer = GetRenderer();
+    renderer.DestroyTexture(m_checker);
+    renderer.DestroyMesh(m_mesh);
+
     Logger::Info("Sandbox stopped");
 }

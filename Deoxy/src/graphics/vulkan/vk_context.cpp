@@ -2,9 +2,12 @@
 #include "components/vk_helper.hpp"
 #include "components/vk_commands.hpp"
 #include "components/vk_depth_buffer.hpp"
+#include "components/vk_texture.hpp"
 #include "shading/vk_push_constants.hpp"
 #include "shading/vk_uniforms.hpp"
 
+#include <deoxy/graphics/image_data.hpp>
+#include <deoxy/graphics/image_loader.hpp>
 #include <deoxy/platform/window.hpp>
 #include <deoxy/platform/logger.hpp>
 #include <deoxy/graphics/vertex.hpp>
@@ -24,6 +27,8 @@ namespace deoxy::graphics {
           m_swapchain(window.GetHandle(), m_surface, m_device, m_allocator),
           m_cameraSetLayout(m_device.GetLogical(), vulkan::CameraBindings),
           m_descriptorPool(m_device.GetLogical(), vulkan::CreateCameraPoolSizes(FRAMES_IN_FLIGHT), FRAMES_IN_FLIGHT),
+          m_textureSetLayout(m_device.GetLogical(), vulkan::TextureBindings),
+          m_textureDescriptorPool(m_device.GetLogical(), vulkan::CreateTexturePoolSizes(MAX_TEXTURES), MAX_TEXTURES),
           m_frames{
               vulkan::VulkanFrame{ m_device.GetLogical(), m_commandPool, m_allocator },
               vulkan::VulkanFrame{ m_device.GetLogical(), m_commandPool, m_allocator }
@@ -31,8 +36,8 @@ namespace deoxy::graphics {
           m_pipeline(
               m_device.GetLogical(),
               m_swapchain.GetColorFormat(), m_swapchain.GetDepthFormat(),
-              m_cameraSetLayout.GetHandle(),
-              "shaders/basic.vert.spv", "shaders/basic.frag.spv") {
+              m_cameraSetLayout.GetHandle(), m_textureSetLayout.GetHandle(),
+              "assets/shaders/basic.vert.spv", "assets/shaders/basic.frag.spv") {
         std::array<VkDescriptorSetLayout, FRAMES_IN_FLIGHT> layouts{};
         layouts.fill(m_cameraSetLayout.GetHandle());
 
@@ -332,10 +337,11 @@ namespace deoxy::graphics {
         ++slot.Generation;
     }
 
-    void VulkanContext::DrawMesh(MeshHandle handle, const math::Mat4& modelMatrix) {
+    void VulkanContext::DrawMesh(MeshHandle meshHandle, TextureHandle textureHandle, const math::Mat4& modelMatrix) {
         vulkan::CheckBool(m_frameActive, "DrawMesh must be called between BeginFrame and EndFrame");
 
-        MeshSlot& slot = getMeshSlot(handle);
+        MeshSlot& meshSlot = getMeshSlot(meshHandle);
+        TextureSlot& textureSlot = getTextureSlot(textureHandle);
         VkCommandBuffer commandBuffer = getActiveCommandBuffer();
 
         vulkan::MeshPushConstants pushConstants {
@@ -350,7 +356,58 @@ namespace deoxy::graphics {
             &pushConstants
         );
 
-        slot.Mesh->Draw(commandBuffer);
+        vkCmdBindDescriptorSets(
+            commandBuffer,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            m_pipeline.GetLayout(),
+            1, 1,
+            &textureSlot.DescriptorSet,
+            0, nullptr
+        );
+
+        meshSlot.Mesh->Draw(commandBuffer);
+    }
+
+    TextureHandle VulkanContext::CreateTexture(const ImageData& data) {
+        // Primeiro procura um espaço liberado
+        for (uint32_t i = 0; i < m_textures.size(); ++i) {
+            TextureSlot& slot = m_textures[i];
+
+            if (!slot.Texture.has_value()) {
+                initializeTextureSlot(slot, data);
+
+                return TextureHandle {
+                    .Index = i,
+                    .Generation = slot.Generation
+                };
+            }
+        }
+
+        // Se não encontrar, cria um novo
+        vulkan::CheckBool(m_textures.size() < static_cast<size_t>(
+            TextureHandle::InvalidIndex
+        ), "Texture storage has reached its maximum capacity");
+
+        const auto index = static_cast<uint32_t>(m_textures.size());
+        m_textures.emplace_back();
+
+        TextureSlot& slot = m_textures.back();
+        initializeTextureSlot(slot, data);
+
+        return TextureHandle {
+            .Index = index,
+            .Generation = slot.Generation
+        };
+    }
+
+    void VulkanContext::DestroyTexture(TextureHandle handle) {
+        vulkan::CheckBool(!m_frameActive, "Cannot destroy a texture during an active frame");
+
+        TextureSlot& slot = getTextureSlot(handle);
+        vulkan::CheckResult(vkDeviceWaitIdle(m_device.GetLogical()));
+
+        slot.Texture.reset();
+        ++slot.Generation;
     }
 
     VulkanContext::MeshSlot& VulkanContext::getMeshSlot(MeshHandle handle) {
@@ -362,6 +419,54 @@ namespace deoxy::graphics {
         vulkan::CheckBool(slot.Mesh.has_value(), "Mesh handle refers to a destroyed mesh");
 
         return slot;
+    }
+
+    VulkanContext::TextureSlot& VulkanContext::getTextureSlot(TextureHandle handle) {
+        vulkan::CheckBool(handle.IsValid(), "Received an invalid texture handle");
+        vulkan::CheckBool(handle.Index < m_textures.size(), "Texture handle index is out of bounds");
+
+        TextureSlot& slot = m_textures[handle.Index];
+        vulkan::CheckBool(slot.Generation == handle.Generation, "Texture handle generation does not match");
+        vulkan::CheckBool(slot.Texture.has_value(), "Texture handle refers to a destroyed texture");
+
+        return slot;
+    }
+
+    void VulkanContext::initializeTextureSlot(TextureSlot& slot, const ImageData& data) {
+        vulkan::CheckBool(!slot.Texture.has_value(), "Cannot initialize an occupied texture slot");
+
+        if (slot.DescriptorSet == VK_NULL_HANDLE) {
+            const std::array<VkDescriptorSetLayout, 1> layouts {m_textureSetLayout.GetHandle()};
+            const std::vector<VkDescriptorSet> descriptorSets = m_textureDescriptorPool.Allocate(layouts);
+
+            vulkan::CheckBool(descriptorSets.size() == 1, "Texture descriptor allocation returned an unexpected set count");
+            slot.DescriptorSet = descriptorSets[0];
+
+            vulkan::CheckBool(slot.DescriptorSet != VK_NULL_HANDLE, "Failed to allocate texture descriptor set");
+        }
+
+        slot.Texture.emplace(
+            m_device.GetLogical(), m_allocator, m_commandPool, m_device.GetQueue(),
+            data
+        );
+
+        VkDescriptorImageInfo imageInfo{
+            .sampler = slot.Texture->GetSampler(),
+            .imageView = slot.Texture->GetImageView(),
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        };
+
+        VkWriteDescriptorSet write{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = slot.DescriptorSet,
+            .dstBinding = 0,
+            .dstArrayElement = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo = &imageInfo
+        };
+
+        vkUpdateDescriptorSets(m_device.GetLogical(), 1, &write, 0, nullptr);
     }
 
     void VulkanContext::SetCamera(const math::Mat4& view, const math::Mat4& projection) {
