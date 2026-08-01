@@ -28,6 +28,8 @@ namespace deoxy::graphics {
             MeshHandle CreateMesh(std::span<const Vertex> vertices, std::span<const uint32_t> indices);
             void DestroyMesh(MeshHandle mesh);
             void DrawMesh(MeshHandle mesh, const math::Mat4& modelMatrix);
+
+            void SetCamera(const math::Mat4& view, const math::Mat4& projection);
         private:
             struct Impl;
             std::unique_ptr<Impl> m_impl;

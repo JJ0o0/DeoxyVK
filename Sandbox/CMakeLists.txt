@@ -4,6 +4,7 @@ target_sources(Sandbox
     PRIVATE
         "src/main.cpp"
         "src/sandbox_application.cpp"
+        "src/camera.cpp"
 )
 
 target_include_directories(Sandbox

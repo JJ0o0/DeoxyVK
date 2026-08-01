@@ -18,8 +18,11 @@ target_sources(Deoxy
         "src/graphics/vulkan/components/vk_swapchain.cpp"
         "src/graphics/vulkan/components/vk_buffer.cpp"
         "src/graphics/vulkan/components/vk_commands.cpp"
+        "src/graphics/vulkan/components/vk_descriptor_pool.cpp"
 
         "src/graphics/vulkan/graphical/vk_mesh.cpp"
+
+        "src/graphics/vulkan/shading/vk_descriptor_set_layout.cpp"
 
         "src/graphics/renderer.cpp"
 

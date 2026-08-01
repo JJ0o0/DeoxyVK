@@ -1,6 +1,7 @@
 #pragma once
 
 #include <deoxy/deoxy.hpp>
+#include <camera.hpp>
 
 class SandboxApplication : public Application {
     public:
@@ -14,7 +15,7 @@ class SandboxApplication : public Application {
         Vec3 m_position{0.0f};
         float m_rotation = 0.0f;
 
-        Color32 m_clearColor{255, 255, 255, 255};
+        Camera m_camera;
 
         MeshHandle m_quad;
 };

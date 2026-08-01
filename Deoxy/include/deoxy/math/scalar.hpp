@@ -16,4 +16,8 @@ namespace deoxy::math {
     inline float Acos(float value) { return std::acos(value); }
     inline float Atan(float value) { return std::atan(value); }
     inline float Atan2(float y, float x) { return std::atan2(y, x); }
+
+    inline float Lerp(float from, float to, float weight) {
+        return from + (to - from) * weight;
+    }
 }

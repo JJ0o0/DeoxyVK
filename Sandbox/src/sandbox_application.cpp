@@ -1,7 +1,6 @@
 #include <sandbox_application.hpp>
 
 const auto CLEAR_COLOR_0 = ParseHexColor32("#1B1B1E").value(); // Carbon Black
-const auto CLEAR_COLOR_1 = ParseHexColor32("#E4E4E4").value(); // Ash White
 
 const std::array<Vertex, 4> QUAD_VERTICES {
     Vertex {
@@ -24,7 +23,7 @@ const std::array<Vertex, 4> QUAD_VERTICES {
 
 const std::array<uint32_t, 6> QUAD_INDICES {
     0, 1, 2,
-    1, 2, 3
+    1, 3, 2
 };
 
 SandboxApplication::SandboxApplication()
@@ -36,38 +35,28 @@ SandboxApplication::SandboxApplication()
      }) { }
 
 void SandboxApplication::OnStart() {
-    deoxy::platform::Logger::Info("Sandbox started");
-
-    m_clearColor = CLEAR_COLOR_0;
+    Logger::Info("Sandbox started");
 
     auto& renderer = GetRenderer();
-    renderer.SetClearColor(m_clearColor);
+    renderer.SetClearColor(CLEAR_COLOR_0);
 
     m_quad = renderer.CreateMesh(QUAD_VERTICES, QUAD_INDICES);
+
+    GetWindow().SetRelativeMouseMode(true);
 }
 
 void SandboxApplication::OnUpdate(float deltaTime) {
     auto& renderer = GetRenderer();
     const auto& input = GetInput();
 
-    const float movement_speed = 1.5f;
-    Vec2 direction{0.0f};
-    if (input.IsPressed(Key::W)) direction.y -= 1.0f;
-    if (input.IsPressed(Key::S)) direction.y += 1.0f;
-    if (input.IsPressed(Key::D)) direction.x += 1.0f;
-    if (input.IsPressed(Key::A)) direction.x -= 1.0f;
-
-    m_position.x += movement_speed * direction.x * deltaTime;
-    m_position.y += movement_speed * direction.y * deltaTime;
-
     const float rotation_speed = 20.0f;
     if (m_rotation > 360) m_rotation = 0;
     m_rotation += rotation_speed * deltaTime;
 
-    if (input.WasPressed(Key::Space)) {
-        m_clearColor = m_clearColor != CLEAR_COLOR_1 ? CLEAR_COLOR_1 : CLEAR_COLOR_0;
-        renderer.SetClearColor(m_clearColor);
-    }
+    m_camera.Update(input, deltaTime);
+    renderer.SetCamera(m_camera.GetView(), m_camera.GetProjection(GetWindow().GetAspectRatio()));
+
+    if (input.WasPressed(Key::F8)) Quit();
 }
 
 void SandboxApplication::OnRender() {
@@ -80,5 +69,5 @@ void SandboxApplication::OnRender() {
 }
 
 void SandboxApplication::OnQuit() {
-    deoxy::platform::Logger::Info("Sandbox stopped");
+    Logger::Info("Sandbox stopped");
 }

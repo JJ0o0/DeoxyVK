@@ -11,6 +11,7 @@
 
 #include <deoxy/platform/logger.hpp>
 
+using namespace deoxy;
 using namespace deoxy::core;
 using namespace deoxy::math;
 using namespace deoxy::graphics;

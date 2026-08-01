@@ -9,8 +9,12 @@
 #include "components/vk_surface.hpp"
 #include "components/vk_swapchain.hpp"
 #include "components/vk_buffer.hpp"
+#include "components/vk_descriptor_pool.hpp"
 
 #include "graphical/vk_mesh.hpp"
+
+#include "shading/vk_uniforms.hpp"
+#include "shading/vk_descriptor_set_layout.hpp"
 
 #include <deoxy/graphics/mesh_handle.hpp>
 #include <deoxy/graphics/color.hpp>
@@ -45,6 +49,8 @@ namespace deoxy::graphics {
             MeshHandle CreateMesh(std::span<const Vertex> vertices, std::span<const uint32_t> indices);
             void DestroyMesh(MeshHandle handle);
             void DrawMesh(MeshHandle handle, const math::Mat4& modelMatrix);
+
+            void SetCamera(const math::Mat4& view, const math::Mat4& projection);
         private:
             static constexpr uint32_t FRAMES_IN_FLIGHT = 2;
 
@@ -61,8 +67,9 @@ namespace deoxy::graphics {
             };
 
             std::vector<MeshSlot> m_meshes;
-
             MeshSlot& getMeshSlot(MeshHandle handle);
+
+            void updateCameraDescriptorSets();
 
             // ORDEM É IMPORTANTE!
             // Construção: Cima pra Baixo
@@ -76,14 +83,17 @@ namespace deoxy::graphics {
             vulkan::VulkanCommandPool m_commandPool;
             vulkan::VulkanSwapchain m_swapchain;
 
+            vulkan::VulkanDescriptorSetLayout m_cameraSetLayout;
+            vulkan::VulkanDescriptorPool m_descriptorPool;
             std::array<vulkan::VulkanFrame, FRAMES_IN_FLIGHT> m_frames;
-
             vulkan::VulkanPipeline m_pipeline;
 
             bool m_frameActive = false;
             bool m_swapchainSuboptimal = false;
             uint32_t m_activeImageIndex = 0;
             uint32_t m_currentFrame = 0;
+
+            vulkan::CameraUniformData m_cameraData{};
 
             VkCommandBuffer getActiveCommandBuffer() const;
     };

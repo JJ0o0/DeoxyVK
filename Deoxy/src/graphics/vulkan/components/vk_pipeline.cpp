@@ -12,20 +12,20 @@
 
 namespace deoxy::graphics::vulkan {
     VulkanPipeline::VulkanPipeline(
-        VkDevice device, VkFormat colorFormat,
+        VkDevice device, VkFormat colorFormat, VkDescriptorSetLayout cameraSetLayout,
         const std::filesystem::path& vertexShaderPath,
         const std::filesystem::path& fragmentShaderPath
     ) : m_device(device) {
         CheckBool(m_device != VK_NULL_HANDLE, "Pipeline received a null logical device");
         CheckBool(colorFormat != VK_FORMAT_UNDEFINED, "Pipeline received an undefined color format");
 
-        create(colorFormat, vertexShaderPath, fragmentShaderPath);
+        create(colorFormat, cameraSetLayout, vertexShaderPath, fragmentShaderPath);
     }
 
     VulkanPipeline::~VulkanPipeline() { destroy(); }
 
     void VulkanPipeline::create(
-        VkFormat colorFormat,
+        VkFormat colorFormat, VkDescriptorSetLayout cameraSetLayout,
         const std::filesystem::path& vertexShaderPath,
         const std::filesystem::path& fragmentShaderPath
     ) {
@@ -124,7 +124,7 @@ namespace deoxy::graphics::vulkan {
                 .depthClampEnable = VK_FALSE,
                 .rasterizerDiscardEnable = VK_FALSE,
                 .polygonMode = VK_POLYGON_MODE_FILL,
-                .cullMode = VK_CULL_MODE_NONE,
+                .cullMode = VK_CULL_MODE_BACK_BIT,
                 .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
                 .depthBiasEnable = VK_FALSE,
                 .lineWidth = 1.0f
@@ -179,8 +179,8 @@ namespace deoxy::graphics::vulkan {
             // Criando o layout da pipeline
             VkPipelineLayoutCreateInfo layoutCI {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-                .setLayoutCount = 0,
-                .pSetLayouts = nullptr,
+                .setLayoutCount = 1,
+                .pSetLayouts = &cameraSetLayout,
                 .pushConstantRangeCount = 1,
                 .pPushConstantRanges = &pushConstantRange,
             };

@@ -2,6 +2,7 @@
 #include "components/vk_helper.hpp"
 #include "components/vk_commands.hpp"
 #include "shading/vk_push_constants.hpp"
+#include "shading/vk_uniforms.hpp"
 
 #include <deoxy/platform/window.hpp>
 #include <deoxy/platform/logger.hpp>
@@ -9,6 +10,7 @@
 
 #include <SDL3/SDL_vulkan.h>
 
+#include <vector>
 #include <array>
 
 namespace deoxy::graphics {
@@ -19,13 +21,22 @@ namespace deoxy::graphics {
           m_allocator(m_instance.GetHandle(), m_device.GetPhysical(), m_device.GetLogical()),
           m_commandPool(m_device.GetLogical(), m_device.GetGraphicsQueueFamily()),
           m_swapchain(window.GetHandle(), m_surface, m_device, m_allocator),
+          m_cameraSetLayout(m_device.GetLogical(), vulkan::CameraBindings),
+          m_descriptorPool(m_device.GetLogical(), vulkan::CreateCameraPoolSizes(FRAMES_IN_FLIGHT), FRAMES_IN_FLIGHT),
           m_frames{
-              vulkan::VulkanFrame{ m_device.GetLogical(), m_commandPool },
-              vulkan::VulkanFrame{ m_device.GetLogical(), m_commandPool }
+              vulkan::VulkanFrame{ m_device.GetLogical(), m_commandPool, m_allocator },
+              vulkan::VulkanFrame{ m_device.GetLogical(), m_commandPool, m_allocator }
           },
           m_pipeline(
-              m_device.GetLogical(), m_swapchain.GetColorFormat(),
+              m_device.GetLogical(), m_swapchain.GetColorFormat(), m_cameraSetLayout.GetHandle(),
               "shaders/basic.vert.spv", "shaders/basic.frag.spv") {
+        std::array<VkDescriptorSetLayout, FRAMES_IN_FLIGHT> layouts{};
+        layouts.fill(m_cameraSetLayout.GetHandle());
+
+        const std::vector<VkDescriptorSet> descriptorSets = m_descriptorPool.Allocate(layouts);
+        for (size_t i = 0; i < FRAMES_IN_FLIGHT; ++i) { m_frames[i].SetCameraDescriptorSet(descriptorSets[i]); }
+
+        updateCameraDescriptorSets();
     }
 
     VulkanContext::~VulkanContext() {
@@ -60,6 +71,8 @@ namespace deoxy::graphics {
 
         m_activeImageIndex = imageIndex;
         m_swapchainSuboptimal = acquireResult == VK_SUBOPTIMAL_KHR;
+
+        frame.GetCameraBuffer().Upload(&m_cameraData, sizeof(m_cameraData));
 
         // Não reseta a cerca antes do acquire
         frame.ResetForSubmit();
@@ -117,11 +130,29 @@ namespace deoxy::graphics {
         vkCmdBeginRendering(commandBuffer, &renderingInfo);
             // Bindando a pipeline
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.GetHandle());
+                // Bindando descriptor sets
+                const VkDescriptorSet cameraDescriptorSet = frame.GetCameraDescriptorSet();
+                vulkan::CheckBool(cameraDescriptorSet != VK_NULL_HANDLE, "Current frame has no camera descriptor set");
+
+                vkCmdBindDescriptorSets(
+                    commandBuffer,
+                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    m_pipeline.GetLayout(),
+                    0,
+                    1,
+                    &cameraDescriptorSet,
+                    0,
+                    nullptr
+                );
+
                 // Criando o viewport
                 VkViewport viewport {
-                    .x = 0.0f, .y = 0.0f,
-                    .width = static_cast<float>(extent.width), .height = static_cast<float>(extent.height),
-                    .minDepth = 0.0f, .maxDepth = 1.0f
+                    .x = 0.0f,
+                    .y = static_cast<float>(extent.height),
+                    .width = static_cast<float>(extent.width),
+                    .height = -static_cast<float>(extent.height),
+                    .minDepth = 0.0f,
+                    .maxDepth = 1.0f
                 };
 
                 // Criando o scissor
@@ -302,6 +333,35 @@ namespace deoxy::graphics {
         vulkan::CheckBool(slot.Mesh.has_value(), "Mesh handle refers to a destroyed mesh");
 
         return slot;
+    }
+
+    void VulkanContext::SetCamera(const math::Mat4& view, const math::Mat4& projection) {
+        m_cameraData.View = view;
+        m_cameraData.Projection = projection;
+    }
+
+    void VulkanContext::updateCameraDescriptorSets() {
+        for (size_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
+            vulkan::VulkanFrame& frame = m_frames[i];
+
+            VkDescriptorBufferInfo bufferInfo {
+                .buffer = frame.GetCameraBuffer().GetHandle(),
+                .offset = 0,
+                .range = sizeof(vulkan::CameraUniformData)
+            };
+
+            VkWriteDescriptorSet write {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = frame.GetCameraDescriptorSet(),
+                .dstBinding = 0,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                .pBufferInfo = &bufferInfo
+            };
+
+            vkUpdateDescriptorSets(m_device.GetLogical(), 1, &write, 0, nullptr);
+        }
     }
 
     VkCommandBuffer VulkanContext::getActiveCommandBuffer() const { return m_frames[m_currentFrame].GetCommandBuffer(); }

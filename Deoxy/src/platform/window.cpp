@@ -1,6 +1,7 @@
 #include <deoxy/platform/window.hpp>
 #include <deoxy/platform/logger.hpp>
 #include <deoxy/input/key.hpp>
+#include <deoxy/input/mouse_buttons.hpp>
 #include <stdexcept>
 #include <optional>
 #include <SDL3/SDL.h>
@@ -103,6 +104,17 @@ namespace deoxy::platform {
         }
     }
 
+    static std::optional<Mouse> ToDeoxyMouseButton(uint8_t btn) {
+        switch (btn) {
+            case SDL_BUTTON_LEFT: return Mouse::Left;
+            case SDL_BUTTON_MIDDLE: return Mouse::Middle;
+            case SDL_BUTTON_RIGHT: return Mouse::Right;
+            case SDL_BUTTON_X1: return Mouse::Side1;
+            case SDL_BUTTON_X2: return Mouse::Side2;
+            default: return std::nullopt;
+        }
+    }
+
     Window::Window(const WindowProperties& properties)
         : m_impl(std::make_unique<Impl>()), m_properties(properties) {
         if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -160,6 +172,22 @@ namespace deoxy::platform {
                     if (key) input.handleKeyRelease(*key);
                     break;
                 };
+                case SDL_EVENT_MOUSE_BUTTON_DOWN: {
+                    const auto btn = ToDeoxyMouseButton(event.button.button);
+                    if (btn) input.handleMousePress(*btn);
+                    break;
+                };
+                case SDL_EVENT_MOUSE_BUTTON_UP: {
+                    const auto btn = ToDeoxyMouseButton(event.button.button);
+                    if (btn) input.handleMouseRelease(*btn);
+                    break;
+                };
+                case SDL_EVENT_MOUSE_MOTION:
+                    input.handleMouseMotion(event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel);
+                    break;
+                case SDL_EVENT_MOUSE_WHEEL:
+                    input.handleMouseWheel(event.wheel.x, event.wheel.y);
+                    break;
                 case SDL_EVENT_WINDOW_FOCUS_LOST:
                     input.handleFocusLost();
                     break;
@@ -169,6 +197,11 @@ namespace deoxy::platform {
     }
 
     bool Window::ShouldClose() const { return m_impl->ShouldClose; }
+
+    void Window::SetRelativeMouseMode(bool enabled) {
+        const bool success = SDL_SetWindowRelativeMouseMode(m_impl->Handle, enabled);
+        if (!success) Logger::Error("Could not toggle to relative mouse mode: {}", SDL_GetError());
+    }
 
     const WindowProperties& Window::GetProperties() const { return m_properties; }
 }

@@ -43,4 +43,8 @@ namespace deoxy::graphics {
     void Renderer::DrawMesh(MeshHandle mesh, const math::Mat4& modelMatrix) {
         m_impl->Context.DrawMesh(mesh, modelMatrix);
     }
+
+    void Renderer::SetCamera(const math::Mat4& view, const math::Mat4& projection) {
+        m_impl->Context.SetCamera(view, projection);
+    }
 }

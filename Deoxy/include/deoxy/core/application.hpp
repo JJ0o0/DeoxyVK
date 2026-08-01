@@ -14,7 +14,7 @@ namespace deoxy::core {
             virtual ~Application() = default;
 
             int Run();
-            void Quit();
+            void Quit() { m_running = false; }
         protected:
             virtual void OnStart() = 0;
             virtual void OnUpdate(float dt) = 0;

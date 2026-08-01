@@ -42,6 +42,7 @@ function(deoxy_compile_shader TARGET_NAME SHADER_NAME)
             -profile glsl_450
             -entry vertexMain
             -stage vertex
+            -matrix-layout-column-major
             -o "${VERTEX_OUTPUT}"
 
         COMMAND
@@ -51,6 +52,7 @@ function(deoxy_compile_shader TARGET_NAME SHADER_NAME)
             -profile glsl_450
             -entry fragmentMain
             -stage fragment
+            -matrix-layout-column-major
             -o "${FRAGMENT_OUTPUT}"
 
         DEPENDS "${SHADER_SOURCE}"
