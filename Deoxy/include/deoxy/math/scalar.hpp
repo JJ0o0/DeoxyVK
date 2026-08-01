@@ -18,6 +18,8 @@ namespace deoxy::math {
     inline float Atan(float value) { return std::atan(value); }
     inline float Atan2(float y, float x) { return std::atan2(y, x); }
 
+    inline float Exp(float value) { return std::exp(value); }
+
     inline float Clamp(float value, float min, float max) {
         assert(min <= max);
 
@@ -28,4 +30,5 @@ namespace deoxy::math {
     }
 
     inline float Lerp(float from, float to, float weight) { return from + (to - from) * weight; }
+    inline float ExponentialSmoothing(float value, float time) { return 1.0f - Exp(-value * time); }
 }

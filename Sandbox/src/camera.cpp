@@ -36,11 +36,22 @@ void Camera::Update(const Input& input, float deltaTime) {
     if (input.IsPressed(Key::A)) movement -= right;
     if (input.IsPressed(Key::Space)) movement += m_worldUp;
     if (input.IsPressed(Key::LeftControl)) movement -= m_worldUp;
-    if (Length(movement) > 0.0f) {
-        movement = Normalize(movement);
 
-        m_position += movement * movement_speed * deltaTime;
+    Vec3 targetVelocity{0.0f};
+    const bool isMoving = Length(movement) > 0.0f;
+    if (isMoving) {
+        movement = Normalize(movement);
+        targetVelocity += movement * movement_speed;
     }
+
+    if (!isMoving && Length(m_velocity) < 0.001f) {
+        m_velocity = Vec3{0.0f};
+    }
+
+    const float sharpness = isMoving ? m_properties.Acceleration : m_properties.Deceleration;
+    const float weight = ExponentialSmoothing(sharpness, deltaTime);
+    m_velocity += (targetVelocity - m_velocity) * weight;
+    m_position += m_velocity * deltaTime;
 
     // ZOOM
     const float scrollY = input.GetMouseWheelDelta().y;

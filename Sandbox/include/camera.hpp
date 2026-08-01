@@ -3,9 +3,15 @@
 #include <deoxy/deoxy.hpp>
 
 struct CameraProperties {
+    float MovementSpeed = 1.5f;
+    float Acceleration = 12.0f;
+    float Deceleration = 8.0f;
+
     float Sensitivity = 0.05f;
+
     float MinimumFov = 30.0f;
     float MaximumFov = 90.0f;
+
     float NearPlane = 0.1f;
     float FarPlane = 100.0f;
 };
@@ -23,6 +29,7 @@ class Camera {
         CameraProperties m_properties;
 
         Vec3 m_position{0.0f, 0.0f, 3.0f};
+        Vec3 m_velocity{0.0f};
         Vec3 m_forward{0.0f, 0.0f, -1.0f};
         Vec3 m_worldUp{0.0f, 1.0f, 0.0f};
 
