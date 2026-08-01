@@ -12,20 +12,24 @@
 
 namespace deoxy::graphics::vulkan {
     VulkanPipeline::VulkanPipeline(
-        VkDevice device, VkFormat colorFormat, VkDescriptorSetLayout cameraSetLayout,
+        VkDevice device,
+        VkFormat colorFormat, VkFormat depthFormat,
+        VkDescriptorSetLayout cameraSetLayout,
         const std::filesystem::path& vertexShaderPath,
         const std::filesystem::path& fragmentShaderPath
     ) : m_device(device) {
         CheckBool(m_device != VK_NULL_HANDLE, "Pipeline received a null logical device");
         CheckBool(colorFormat != VK_FORMAT_UNDEFINED, "Pipeline received an undefined color format");
+        CheckBool(depthFormat != VK_FORMAT_UNDEFINED, "Pipeline received an undefined depth format");
 
-        create(colorFormat, cameraSetLayout, vertexShaderPath, fragmentShaderPath);
+        create(colorFormat, depthFormat, cameraSetLayout, vertexShaderPath, fragmentShaderPath);
     }
 
     VulkanPipeline::~VulkanPipeline() { destroy(); }
 
     void VulkanPipeline::create(
-        VkFormat colorFormat, VkDescriptorSetLayout cameraSetLayout,
+        VkFormat colorFormat, VkFormat depthFormat,
+        VkDescriptorSetLayout cameraSetLayout,
         const std::filesystem::path& vertexShaderPath,
         const std::filesystem::path& fragmentShaderPath
     ) {
@@ -140,8 +144,8 @@ namespace deoxy::graphics::vulkan {
             // Definindo configurações do Depth Test
             VkPipelineDepthStencilStateCreateInfo depthStencilCI {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-                .depthTestEnable = VK_FALSE,
-                .depthWriteEnable = VK_FALSE,
+                .depthTestEnable = VK_TRUE,
+                .depthWriteEnable = VK_TRUE,
                 .depthCompareOp = VK_COMPARE_OP_LESS,
                 .depthBoundsTestEnable = VK_FALSE,
                 .stencilTestEnable = VK_FALSE
@@ -190,11 +194,9 @@ namespace deoxy::graphics::vulkan {
             // Informando o formato usado pelo dynamic rendering
             VkPipelineRenderingCreateInfo renderingCI {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-                .viewMask = 0,
                 .colorAttachmentCount = 1,
                 .pColorAttachmentFormats = &colorFormat,
-                .depthAttachmentFormat = VK_FORMAT_UNDEFINED,
-                .stencilAttachmentFormat = VK_FORMAT_UNDEFINED
+                .depthAttachmentFormat = depthFormat,
             };
 
             // Juntando TOOOODOS os estados e criando o pipeline

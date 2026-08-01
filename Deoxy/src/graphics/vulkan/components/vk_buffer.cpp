@@ -88,7 +88,7 @@ namespace deoxy::graphics::vulkan {
     void VulkanBuffer::destroy() {
         if (m_allocator != nullptr && m_buffer != VK_NULL_HANDLE) vmaDestroyBuffer(m_allocator, m_buffer, m_allocation);
 
-        // MEXER COM MEMÓRIA É PERIGOSO! Vou resestar todos os valores POR PRECAUÇÃO
+        // MEXER COM MEMÓRIA É PERIGOSO! Vou resetar todos os valores POR PRECAUÇÃO
         m_buffer = VK_NULL_HANDLE;
         m_allocation = nullptr;
         m_size = 0;

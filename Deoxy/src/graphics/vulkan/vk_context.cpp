@@ -1,6 +1,7 @@
 #include "vk_context.hpp"
 #include "components/vk_helper.hpp"
 #include "components/vk_commands.hpp"
+#include "components/vk_depth_buffer.hpp"
 #include "shading/vk_push_constants.hpp"
 #include "shading/vk_uniforms.hpp"
 
@@ -28,7 +29,9 @@ namespace deoxy::graphics {
               vulkan::VulkanFrame{ m_device.GetLogical(), m_commandPool, m_allocator }
           },
           m_pipeline(
-              m_device.GetLogical(), m_swapchain.GetColorFormat(), m_cameraSetLayout.GetHandle(),
+              m_device.GetLogical(),
+              m_swapchain.GetColorFormat(), m_swapchain.GetDepthFormat(),
+              m_cameraSetLayout.GetHandle(),
               "shaders/basic.vert.spv", "shaders/basic.frag.spv") {
         std::array<VkDescriptorSetLayout, FRAMES_IN_FLIGHT> layouts{};
         layouts.fill(m_cameraSetLayout.GetHandle());
@@ -86,18 +89,29 @@ namespace deoxy::graphics {
 
         vulkan::CheckResult(vkBeginCommandBuffer(commandBuffer, &beginInfo));
 
-        // Prepara a imagem para receber renderização
+        // Prepara a imagem de cor
         const VkImage swapchainImage = m_swapchain.GetImage(imageIndex);
         vulkan::TransitionImage(
             commandBuffer, swapchainImage,
             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             VK_PIPELINE_STAGE_2_NONE, 0,
             VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-            VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT
+            VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+            VK_IMAGE_ASPECT_COLOR_BIT
+        );
+
+        // Prepara a imagem de Depth
+        const vulkan::VulkanDepthBuffer& depthBuffer = m_swapchain.GetDepthBuffer(imageIndex);
+        vulkan::TransitionImage(
+            commandBuffer, depthBuffer.GetImage(),
+            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+            VK_PIPELINE_STAGE_2_NONE, 0,
+            VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+            VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+            VK_IMAGE_ASPECT_DEPTH_BIT
         );
 
         // Configura o attachment de cor
-
         VkClearValue clearValue {};
         clearValue.color.float32[0] = m_clearColor.R;
         clearValue.color.float32[1] = m_clearColor.G;
@@ -114,6 +128,20 @@ namespace deoxy::graphics {
             .clearValue = clearValue
         };
 
+        // Configura o attachment de depth
+        VkClearValue depthClearValue {};
+        depthClearValue.depthStencil.depth = 1.0f;
+        depthClearValue.depthStencil.stencil = 0;
+
+        VkRenderingAttachmentInfo depthAttachment {
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .imageView = depthBuffer.GetImageView(),
+            .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .clearValue = depthClearValue
+        };
+
         const VkExtent2D extent = m_swapchain.GetExtent();
         VkRenderingInfo renderingInfo {
             .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
@@ -123,7 +151,8 @@ namespace deoxy::graphics {
             },
             .layerCount = 1,
             .colorAttachmentCount = 1,
-            .pColorAttachments = &colorAttachment
+            .pColorAttachments = &colorAttachment,
+            .pDepthAttachment = &depthAttachment
         };
 
         // Limpa a imagem

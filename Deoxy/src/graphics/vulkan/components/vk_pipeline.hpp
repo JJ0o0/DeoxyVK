@@ -10,7 +10,9 @@ namespace deoxy::graphics::vulkan {
     class VulkanPipeline {
         public:
             VulkanPipeline(
-                VkDevice device, VkFormat colorFormat, VkDescriptorSetLayout cameraSetLayout,
+                VkDevice device,
+                VkFormat colorFormat, VkFormat depthFormat,
+                VkDescriptorSetLayout cameraSetLayout,
                 const std::filesystem::path& vertexShaderPath,
                 const std::filesystem::path& fragmentShaderPath
             );
@@ -29,7 +31,8 @@ namespace deoxy::graphics::vulkan {
             VkDevice m_device = VK_NULL_HANDLE;
 
             void create(
-                VkFormat colorFormat, VkDescriptorSetLayout cameraSetLayout,
+                VkFormat colorFormat, VkFormat depthFormat,
+                VkDescriptorSetLayout cameraSetLayout,
                 const std::filesystem::path& vertexShaderPath,
                 const std::filesystem::path& fragmentShaderPath
             );

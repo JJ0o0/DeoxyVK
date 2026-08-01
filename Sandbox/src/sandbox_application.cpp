@@ -19,7 +19,7 @@ void SandboxApplication::OnStart() {
     MeshData cube = MeshGenerator::CreateCube(1.0f);
     m_quad = renderer.CreateMesh(cube.Vertices, cube.Indices);
 
-    GetWindow().SetRelativeMouseMode(true);
+    GetWindow().SetRelativeMouseMode(m_mouseLocked);
 }
 
 void SandboxApplication::OnUpdate(float deltaTime) {
@@ -29,22 +29,35 @@ void SandboxApplication::OnUpdate(float deltaTime) {
     const float rotation_speed = 20.0f;
     m_rotation += rotation_speed * deltaTime;
 
-    m_camera.Update(input, deltaTime);
+    if (m_mouseLocked) m_camera.Update(input, deltaTime);
     renderer.SetCamera(m_camera.GetView(), m_camera.GetProjection(GetWindow().GetAspectRatio()));
+
+    if (input.WasPressed(Key::Escape)) {
+        m_mouseLocked = !m_mouseLocked;
+        GetWindow().SetRelativeMouseMode(m_mouseLocked);
+    }
 
     if (input.WasPressed(Key::F8)) Quit();
 }
 
 void SandboxApplication::OnRender() {
     Mat4 model{1.0f};
-    model = Translate(model, m_position);
+    model = Translate(model, Vec3{0.0f});
     model = RotateX(model, ToRadians(m_rotation * 0.8f));
     model = RotateY(model, ToRadians(m_rotation * 0.9f));
     model = RotateZ(model, ToRadians(m_rotation));
     model = Scale(model, Vec3{0.5f});
 
     GetRenderer().DrawMesh(m_quad, model);
-    GetRenderer().DrawMesh(m_quad, model);
+
+    Mat4 model2{1.0f};
+    model2 = Translate(model2, Vec3{0.0f, 0.0f, -1.0f});
+    model2 = RotateX(model2, ToRadians(m_rotation * 0.8f));
+    model2 = RotateY(model2, ToRadians(m_rotation * 0.9f));
+    model2 = RotateZ(model2, ToRadians(m_rotation));
+    model2 = Scale(model2, Vec3{0.5f});
+
+    GetRenderer().DrawMesh(m_quad, model2);
 }
 
 void SandboxApplication::OnQuit() {

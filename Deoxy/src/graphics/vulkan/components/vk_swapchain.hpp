@@ -12,7 +12,7 @@ namespace deoxy::graphics::vulkan {
     class VulkanSurface;
     class VulkanDevice;
     class VulkanAllocator;
-
+    class VulkanDepthBuffer;
     class VulkanSwapchain {
         public:
             VulkanSwapchain(
@@ -44,7 +44,8 @@ namespace deoxy::graphics::vulkan {
             size_t GetImageCount() const { return m_images.size(); }
             VkImage GetImage(uint32_t index) const { return m_images.at(index); }
             VkImageView GetImageView(uint32_t index) const { return m_imageViews.at(index); }
-            VkImageView GetDepthImageView() const { return m_depthImageView; }
+
+            const VulkanDepthBuffer& GetDepthBuffer(uint32_t index) const;
 
             VkSemaphore GetRenderFinishedSemaphore(uint32_t imageIndex) const { return m_renderFinishedSemaphores.at(imageIndex); }
         private:
@@ -74,14 +75,11 @@ namespace deoxy::graphics::vulkan {
 
             VkExtent2D m_extent{};
             VkFormat m_colorFormat = VK_FORMAT_UNDEFINED;
+            VkFormat m_depthFormat = VK_FORMAT_UNDEFINED;
 
             std::vector<VkImage> m_images;
             std::vector<VkImageView> m_imageViews;
-
-            VkImage m_depthImage = VK_NULL_HANDLE;
-            VkImageView m_depthImageView = VK_NULL_HANDLE;
-            VmaAllocation m_depthAllocation = nullptr;
-            VkFormat m_depthFormat = VK_FORMAT_UNDEFINED;
+            std::vector<VulkanDepthBuffer> m_depthBuffers;
 
             std::vector<VkSemaphore> m_renderFinishedSemaphores;
     };

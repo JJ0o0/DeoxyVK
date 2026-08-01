@@ -1,4 +1,5 @@
 #include "vk_swapchain.hpp"
+#include "vk_depth_buffer.hpp"
 #include "vk_allocator.hpp"
 #include "vk_device.hpp"
 #include "vk_helper.hpp"
@@ -76,6 +77,12 @@ namespace deoxy::graphics::vulkan {
                desiredExtent.height != m_extent.height;
     }
 
+    const VulkanDepthBuffer& VulkanSwapchain::GetDepthBuffer(uint32_t index) const {
+        CheckBool(index < m_depthBuffers.size(), "DepthBuffer index is out of bounds");
+
+        return m_depthBuffers.at(index);
+    }
+
     void VulkanSwapchain::create() {
         createSwapchain();
         createImageViews();
@@ -92,8 +99,7 @@ namespace deoxy::graphics::vulkan {
             m_renderFinishedSemaphores.clear();
         }
 
-        if (m_depthImageView != VK_NULL_HANDLE) vkDestroyImageView(m_device, m_depthImageView, nullptr);
-        if (m_depthImage != VK_NULL_HANDLE) vmaDestroyImage(m_allocator, m_depthImage, m_depthAllocation);
+        m_depthBuffers.clear();
 
         if (!m_imageViews.empty()) {
             for (VkImageView iv : m_imageViews) {
@@ -103,7 +109,12 @@ namespace deoxy::graphics::vulkan {
             m_imageViews.clear();
         }
 
-        if (m_swapchain != VK_NULL_HANDLE) vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+        m_images.clear();
+
+        if (m_swapchain != VK_NULL_HANDLE) {
+            vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+            m_swapchain = VK_NULL_HANDLE;
+        }
     }
 
     void VulkanSwapchain::createSwapchain() {
@@ -186,47 +197,11 @@ namespace deoxy::graphics::vulkan {
         // Escolhendo o formato disponível
         m_depthFormat = chooseDepthFormat();
 
-        // Alocar e criar a imagem de depth
-        VkImageCreateInfo depthImageCI {
-            .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-            .imageType = VK_IMAGE_TYPE_2D,
-            .format = m_depthFormat,
-            .extent {
-                .width = m_extent.width, .height = m_extent.height,
-                .depth = 1
-            },
-            .mipLevels = 1,
-            .arrayLayers = 1,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .tiling = VK_IMAGE_TILING_OPTIMAL,
-            .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
-        };
-
-        VmaAllocationCreateInfo allocCI {
-            .flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
-            .usage = VMA_MEMORY_USAGE_AUTO
-        };
-
-        CheckResult(vmaCreateImage(m_allocator, &depthImageCI, &allocCI, &m_depthImage, &m_depthAllocation, nullptr));
-
-        // Criando image view do depth
-        VkImageViewCreateInfo depthViewCI {
-            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-            .image = m_depthImage,
-            .viewType = VK_IMAGE_VIEW_TYPE_2D,
-            .format = m_depthFormat,
-            .subresourceRange {
-                .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
-                .baseMipLevel = 0,
-                .levelCount = 1,
-                .baseArrayLayer = 0,
-                .layerCount = 1
-            }
-        };
-
-        CheckResult(vkCreateImageView(m_device, &depthViewCI, nullptr, &m_depthImageView));
+        // Resernvando e criando depth buffers
+        m_depthBuffers.reserve(m_images.size());
+        for (size_t i = 0; i < m_images.size(); ++i) {
+            m_depthBuffers.emplace_back(m_device, m_allocator, m_extent, m_depthFormat);
+        }
     }
 
     void VulkanSwapchain::createRenderFinishedSemaphores() {
@@ -309,7 +284,8 @@ namespace deoxy::graphics::vulkan {
     }
 
     VkFormat VulkanSwapchain::chooseDepthFormat() const {
-        static constexpr std::array<VkFormat, 2> candidates{
+        static constexpr std::array<VkFormat, 3> candidates{
+            VK_FORMAT_D32_SFLOAT,
             VK_FORMAT_D32_SFLOAT_S8_UINT,
             VK_FORMAT_D24_UNORM_S8_UINT
         };

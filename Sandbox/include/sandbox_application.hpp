@@ -12,6 +12,8 @@ class SandboxApplication : public Application {
         void OnRender() override;
         void OnQuit() override;
     private:
+        bool m_mouseLocked = true;
+
         Vec3 m_position{0.0f};
         float m_rotation = 0.0f;
 
