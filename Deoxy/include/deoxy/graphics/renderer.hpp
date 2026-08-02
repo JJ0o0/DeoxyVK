@@ -1,8 +1,7 @@
 #pragma once
 
-#include <deoxy/graphics/mesh_handle.hpp>
+#include <deoxy/graphics/graphical_handles.hpp>
 #include <deoxy/graphics/mesh_data.hpp>
-#include <deoxy/graphics/texture_handle.hpp>
 #include <deoxy/graphics/vertex.hpp>
 #include <deoxy/graphics/color.hpp>
 #include <deoxy/math/math.hpp>

@@ -17,8 +17,7 @@
 #include "shading/vk_uniforms.hpp"
 #include "shading/vk_descriptor_set_layout.hpp"
 
-#include <deoxy/graphics/mesh_handle.hpp>
-#include <deoxy/graphics/texture_handle.hpp>
+#include <deoxy/graphics/graphical_handles.hpp>
 #include <deoxy/graphics/color.hpp>
 #include <deoxy/math/math.hpp>
 
