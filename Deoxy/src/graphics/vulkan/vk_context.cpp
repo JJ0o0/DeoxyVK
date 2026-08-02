@@ -6,8 +6,9 @@
 #include "shading/vk_push_constants.hpp"
 #include "shading/vk_uniforms.hpp"
 
-#include <deoxy/graphics/image_data.hpp>
+#include <deoxy/graphics/graphical_handles.hpp>
 #include <deoxy/graphics/image_loader.hpp>
+#include <deoxy/graphics/image_data.hpp>
 #include <deoxy/platform/window.hpp>
 #include <deoxy/platform/logger.hpp>
 #include <deoxy/graphics/vertex.hpp>
@@ -45,6 +46,7 @@ namespace deoxy::graphics {
         for (size_t i = 0; i < FRAMES_IN_FLIGHT; ++i) { m_frames[i].SetCameraDescriptorSet(descriptorSets[i]); }
 
         updateCameraDescriptorSets();
+        createDefaultWhiteTexture();
     }
 
     VulkanContext::~VulkanContext() {
@@ -294,8 +296,8 @@ namespace deoxy::graphics {
         for (uint32_t i = 0; i < m_meshes.size(); ++i) {
             MeshSlot& slot = m_meshes[i];
 
-            if (!slot.Mesh.has_value()) {
-                slot.Mesh.emplace(
+            if (!slot.Resource.has_value()) {
+                slot.Resource.emplace(
                     m_allocator, m_commandPool, m_device.GetQueue(),
                     vertices, indices
                 );
@@ -316,7 +318,7 @@ namespace deoxy::graphics {
         m_meshes.emplace_back();
 
         MeshSlot& slot = m_meshes.back();
-        slot.Mesh.emplace(
+        slot.Resource.emplace(
             m_allocator, m_commandPool, m_device.GetQueue(),
             vertices, indices
         );
@@ -333,26 +335,32 @@ namespace deoxy::graphics {
         MeshSlot& slot = getMeshSlot(handle);
         vulkan::CheckResult(vkDeviceWaitIdle(m_device.GetLogical()));
 
-        slot.Mesh.reset();
+        slot.Resource.reset();
         ++slot.Generation;
     }
 
-    void VulkanContext::DrawMesh(MeshHandle meshHandle, TextureHandle textureHandle, const math::Mat4& modelMatrix) {
+    void VulkanContext::DrawMesh(MeshHandle meshHandle, MaterialHandle materialHandle, const math::Mat4& modelMatrix) {
         vulkan::CheckBool(m_frameActive, "DrawMesh must be called between BeginFrame and EndFrame");
 
         MeshSlot& meshSlot = getMeshSlot(meshHandle);
-        TextureSlot& textureSlot = getTextureSlot(textureHandle);
+
+        MaterialSlot& materialSlot = getMaterialSlot(materialHandle);
+        const MaterialCreateInfo& materialCI = materialSlot.Resource.value();
+
+        TextureSlot& textureSlot = getTextureSlot(materialCI.Albedo);
+
         VkCommandBuffer commandBuffer = getActiveCommandBuffer();
 
-        vulkan::MeshPushConstants pushConstants {
-            .ModelMatrix = modelMatrix
+        vulkan::PushConstants pushConstants {
+            .ModelMatrix = modelMatrix,
+            .MaterialTint = materialCI.Tint
         };
 
         vkCmdPushConstants(
             commandBuffer,
             m_pipeline.GetLayout(),
-            VK_SHADER_STAGE_VERTEX_BIT,
-            0, sizeof(vulkan::MeshPushConstants),
+            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+            0, sizeof(vulkan::PushConstants),
             &pushConstants
         );
 
@@ -365,7 +373,7 @@ namespace deoxy::graphics {
             0, nullptr
         );
 
-        meshSlot.Mesh->Draw(commandBuffer);
+        meshSlot.Resource->Draw(commandBuffer);
     }
 
     TextureHandle VulkanContext::CreateTexture(const ImageData& data) {
@@ -410,13 +418,58 @@ namespace deoxy::graphics {
         ++slot.Generation;
     }
 
+    MaterialHandle VulkanContext::CreateMaterial(const MaterialCreateInfo& data) {
+        // Copiando material
+        MaterialCreateInfo material = data;
+        if (!material.Albedo.IsValid()) material.Albedo = m_defaultTexture;
+        (void)getTextureSlot(material.Albedo);
+
+        // Procura um espaço liberado
+        for (uint32_t i = 0; i < m_materials.size(); ++i) {
+            MaterialSlot& slot = m_materials[i];
+
+            if (!slot.Resource.has_value()) {
+                slot.Resource = material;
+
+                return MaterialHandle {
+                    .Index = i,
+                    .Generation = slot.Generation
+                };
+            }
+        }
+
+        // Se não encontrar, cria um novo
+        vulkan::CheckBool(m_materials.size() < static_cast<size_t>(
+            MaterialHandle::InvalidIndex
+        ), "Material storage has reached its maximum capacity");
+
+        const auto index = static_cast<uint32_t>(m_materials.size());
+        m_materials.emplace_back();
+
+        MaterialSlot& slot = m_materials.back();
+        slot.Resource = material;
+
+        return MaterialHandle {
+            .Index = index,
+            .Generation = slot.Generation
+        };
+    }
+
+    void VulkanContext::DestroyMaterial(MaterialHandle handle) {
+        vulkan::CheckBool(!m_frameActive, "Cannot destroy a material during an active frame");
+
+        MaterialSlot& slot = getMaterialSlot(handle);
+        slot.Resource.reset();
+        ++slot.Generation;
+    }
+
     VulkanContext::MeshSlot& VulkanContext::getMeshSlot(MeshHandle handle) {
         vulkan::CheckBool(handle.IsValid(), "Received an invalid mesh handle");
         vulkan::CheckBool(handle.Index < m_meshes.size(), "Mesh handle index is out of bounds");
 
         MeshSlot& slot = m_meshes[handle.Index];
         vulkan::CheckBool(slot.Generation == handle.Generation, "Mesh handle generation does not match");
-        vulkan::CheckBool(slot.Mesh.has_value(), "Mesh handle refers to a destroyed mesh");
+        vulkan::CheckBool(slot.Resource.has_value(), "Mesh handle refers to a destroyed mesh");
 
         return slot;
     }
@@ -469,6 +522,17 @@ namespace deoxy::graphics {
         vkUpdateDescriptorSets(m_device.GetLogical(), 1, &write, 0, nullptr);
     }
 
+    VulkanContext::MaterialSlot& VulkanContext::getMaterialSlot(MaterialHandle handle) {
+        vulkan::CheckBool(handle.IsValid(), "Received an invalid material handle");
+        vulkan::CheckBool(handle.Index < m_materials.size(), "Material handle index is out of bounds");
+
+        MaterialSlot& slot = m_materials[handle.Index];
+        vulkan::CheckBool(slot.Generation == handle.Generation, "Material handle generation does not match");
+        vulkan::CheckBool(slot.Resource.has_value(), "Material handle refers to a destroyed material");
+
+        return slot;
+    }
+
     void VulkanContext::SetCamera(const math::Mat4& view, const math::Mat4& projection) {
         m_cameraData.View = view;
         m_cameraData.Projection = projection;
@@ -496,6 +560,16 @@ namespace deoxy::graphics {
 
             vkUpdateDescriptorSets(m_device.GetLogical(), 1, &write, 0, nullptr);
         }
+    }
+
+    void VulkanContext::createDefaultWhiteTexture() {
+        ImageData data {
+            .Pixels = { 255, 255, 255, 255 },
+            .Width = 1, .Height = 1,
+        };
+
+        m_defaultTexture = CreateTexture(data);
+        vulkan::CheckBool(m_defaultTexture.IsValid(), "Failed to create the default white texture");
     }
 
     VkCommandBuffer VulkanContext::getActiveCommandBuffer() const { return m_frames[m_currentFrame].GetCommandBuffer(); }

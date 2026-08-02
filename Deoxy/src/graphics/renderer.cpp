@@ -45,8 +45,8 @@ namespace deoxy::graphics {
         m_impl->Context.DestroyMesh(mesh);
     }
 
-    void Renderer::DrawMesh(MeshHandle mesh, TextureHandle texture, const math::Mat4& modelMatrix) {
-        m_impl->Context.DrawMesh(mesh, texture, modelMatrix);
+    void Renderer::DrawMesh(MeshHandle mesh, MaterialHandle material, const math::Mat4& modelMatrix) {
+        m_impl->Context.DrawMesh(mesh, material, modelMatrix);
     }
 
     TextureHandle Renderer::CreateTexture(const std::filesystem::path& path) {
@@ -56,6 +56,14 @@ namespace deoxy::graphics {
 
     void Renderer::DestroyTexture(TextureHandle handle) {
         m_impl->Context.DestroyTexture(handle);
+    }
+
+    MaterialHandle Renderer::CreateMaterial(const MaterialCreateInfo& createInfo) {
+        return m_impl->Context.CreateMaterial(createInfo);
+    }
+
+    void Renderer::DestroyMaterial(MaterialHandle handle) {
+        m_impl->Context.DestroyMaterial(handle);
     }
 
     void Renderer::SetCamera(const math::Mat4& view, const math::Mat4& projection) {

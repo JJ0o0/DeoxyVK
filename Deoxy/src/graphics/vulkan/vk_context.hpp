@@ -11,6 +11,7 @@
 #include "components/vk_buffer.hpp"
 #include "components/vk_descriptor_pool.hpp"
 #include "components/vk_texture.hpp"
+#include "components/vk_resource_slot.hpp"
 
 #include "graphical/vk_mesh.hpp"
 
@@ -18,6 +19,7 @@
 #include "shading/vk_descriptor_set_layout.hpp"
 
 #include <deoxy/graphics/graphical_handles.hpp>
+#include <deoxy/graphics/material.hpp>
 #include <deoxy/graphics/color.hpp>
 #include <deoxy/math/math.hpp>
 
@@ -50,10 +52,13 @@ namespace deoxy::graphics {
 
             MeshHandle CreateMesh(std::span<const Vertex> vertices, std::span<const uint32_t> indices);
             void DestroyMesh(MeshHandle handle);
-            void DrawMesh(MeshHandle meshHandle, TextureHandle textureHandle, const math::Mat4& modelMatrix);
+            void DrawMesh(MeshHandle meshHandle, MaterialHandle materialHandle, const math::Mat4& modelMatrix);
 
             TextureHandle CreateTexture(const ImageData& data);
             void DestroyTexture(TextureHandle handle);
+
+            MaterialHandle CreateMaterial(const MaterialCreateInfo& data);
+            void DestroyMaterial(MaterialHandle handle);
 
             void SetCamera(const math::Mat4& view, const math::Mat4& projection);
         private:
@@ -62,28 +67,29 @@ namespace deoxy::graphics {
 
             Color m_clearColor { 0.05f, 0.1f, 0.2f };
 
-            struct MeshSlot {
-                std::optional<vulkan::VulkanMesh> Mesh;
-                uint32_t Generation = 0;
-            };
-
-            MeshSlot& getMeshSlot(MeshHandle handle);
-
+            // RECURSOS
             struct TextureSlot {
                 std::optional<vulkan::VulkanTexture> Texture;
                 VkDescriptorSet DescriptorSet = VK_NULL_HANDLE;
-                uint32_t Generation = 1;
+                uint32_t Generation = 0;
             };
+
+            using MeshSlot = vulkan::ResourceSlot<vulkan::VulkanMesh>;
+            using MaterialSlot = vulkan::ResourceSlot<MaterialCreateInfo>;
+
+            MeshSlot& getMeshSlot(MeshHandle handle);
 
             TextureSlot& getTextureSlot(TextureHandle handle);
             void initializeTextureSlot(TextureSlot& slot, const ImageData& data);
 
+            MaterialSlot& getMaterialSlot(MaterialHandle handle);
+
             void updateCameraDescriptorSets();
+            void createDefaultWhiteTexture();
 
             // ORDEM É IMPORTANTE!
             // Construção: Cima pra Baixo
             // Destruição: Baixo pra Cima
-
             vulkan::VulkanInstance m_instance;
             vulkan::VulkanSurface m_surface;
             vulkan::VulkanDevice m_device;
@@ -101,6 +107,8 @@ namespace deoxy::graphics {
 
             std::vector<MeshSlot> m_meshes;
             std::vector<TextureSlot> m_textures;
+            TextureHandle m_defaultTexture;
+            std::vector<MaterialSlot> m_materials;
 
             bool m_frameActive = false;
             bool m_swapchainSuboptimal = false;

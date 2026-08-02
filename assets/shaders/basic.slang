@@ -16,14 +16,15 @@ struct CameraUniformData {
     float4x4 Projection;
 };
 
-struct MeshPushConstants {
+struct PushConstantsData {
     float4x4 ModelMatrix;
+    float4 MaterialTint;
 };
 
 [[vk::binding(0, 0)]] ConstantBuffer<CameraUniformData> Camera;
 [[vk::binding(0, 1)]] Sampler2D<float4> AlbedoTexture;
 
-[[vk::push_constant]] ConstantBuffer<MeshPushConstants> PushConstants;
+[[vk::push_constant]] ConstantBuffer<PushConstantsData> PushConstants;
 
 [shader("vertex")]
 VertexOutput vertexMain(VertexInput input) {
@@ -42,5 +43,5 @@ VertexOutput vertexMain(VertexInput input) {
 [shader("fragment")]
 float4 fragmentMain(VertexOutput input) : SV_Target {
     float4 textureColor = AlbedoTexture.Sample(input.UV);
-    return textureColor * input.Color;
+    return textureColor * input.Color * PushConstants.MaterialTint;
 }

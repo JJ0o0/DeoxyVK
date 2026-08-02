@@ -5,8 +5,8 @@ const auto CLEAR_COLOR_0 = ParseHexColor32("#1B1B1E").value(); // Carbon Black
 SandboxApplication::SandboxApplication()
     : Application({
         .Title = "DeoxyVK Sandbox",
-        .Width = 800,
-        .Height = 600,
+        .Width = 854,
+        .Height = 480,
         .Resizable = false
      }) { }
 
@@ -19,6 +19,9 @@ void SandboxApplication::OnStart() {
     MeshData cube = MeshGenerator::CreateCube(1.0f);
     m_mesh = renderer.CreateMesh(cube);
     m_checker = renderer.CreateTexture("assets/textures/checker.png");
+    m_checkerMaterial = renderer.CreateMaterial(MaterialCreateInfo{
+        .Albedo = m_checker
+    });
 
     auto& window = GetWindow();
     window.SetIcon("assets/icon.png");
@@ -54,11 +57,12 @@ void SandboxApplication::OnRender() {
     model = Scale(model, Vec3{0.5f});
 
     auto& renderer = GetRenderer();
-    renderer.DrawMesh(m_mesh, m_checker, model);
+    renderer.DrawMesh(m_mesh, m_checkerMaterial, model);
 }
 
 void SandboxApplication::OnQuit() {
     auto& renderer = GetRenderer();
+    renderer.DestroyMaterial(m_checkerMaterial);
     renderer.DestroyTexture(m_checker);
     renderer.DestroyMesh(m_mesh);
 

@@ -181,9 +181,9 @@ namespace deoxy::graphics::vulkan {
 
             // Criando informações das Push Constants
             VkPushConstantRange pushConstantRange {
-                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                 .offset = 0,
-                .size = sizeof(MeshPushConstants)
+                .size = sizeof(PushConstants)
             };
 
             // Criando o layout da pipeline
