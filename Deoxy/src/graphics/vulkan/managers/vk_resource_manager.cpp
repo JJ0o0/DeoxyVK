@@ -1,0 +1,243 @@
+#include "vk_resource_manager.hpp"
+#include "../shading/vk_descriptor_set_layout.hpp"
+#include "../components/vk_descriptor_pool.hpp"
+#include "../components/vk_command_pool.hpp"
+#include "../components/vk_allocator.hpp"
+#include "../components/vk_device.hpp"
+#include "../components/vk_helper.hpp"
+
+namespace deoxy::graphics::vulkan {
+    VulkanResourceManager::VulkanResourceManager(
+        VulkanDevice& device,
+        VulkanAllocator& allocator,
+        VulkanCommandPool& commandPool,
+        VulkanDescriptorSetLayout& textureSetLayout,
+        VulkanDescriptorPool& textureDescriptorPool
+    ) : m_device(device),
+        m_allocator(allocator),
+        m_commandPool(commandPool),
+        m_textureSetLayout(textureSetLayout),
+        m_textureDescriptorPool(textureDescriptorPool) {
+        createDefaultWhiteTexture();
+    }
+
+    MeshHandle VulkanResourceManager::CreateMesh(std::span<const Vertex> vertices, std::span<const std::uint32_t> indices) {
+        // Primeiro procura um espaço liberado
+        for (uint32_t i = 0; i < m_meshes.size(); ++i) {
+            MeshSlot& slot = m_meshes[i];
+
+            if (!slot.Resource.has_value()) {
+                slot.Resource.emplace(
+                    m_allocator, m_commandPool, m_device.GetQueue(),
+                    vertices, indices
+                );
+
+                return MeshHandle {
+                    .Index = i,
+                    .Generation = slot.Generation
+                };
+            }
+        }
+
+        // Se não encontrar, cria um novo
+        CheckBool(m_meshes.size() < static_cast<size_t>(
+            MeshHandle::InvalidIndex
+        ), "Mesh storage has reached its maximum capacity");
+
+        const auto index = static_cast<uint32_t>(m_meshes.size());
+        m_meshes.emplace_back();
+
+        MeshSlot& slot = m_meshes.back();
+        slot.Resource.emplace(
+            m_allocator, m_commandPool, m_device.GetQueue(),
+            vertices, indices
+        );
+
+        return MeshHandle {
+            .Index = index,
+            .Generation = slot.Generation
+        };
+    }
+
+    void VulkanResourceManager::DestroyMesh(MeshHandle handle) {
+        MeshSlot& slot = getMeshSlot(handle);
+        slot.Resource.reset();
+        ++slot.Generation;
+    }
+
+    TextureHandle VulkanResourceManager::CreateTexture(const ImageData& data) {
+        // Primeiro procura um espaço liberado
+        for (uint32_t i = 0; i < m_textures.size(); ++i) {
+            TextureSlot& slot = m_textures[i];
+
+            if (!slot.Texture.has_value()) {
+                initializeTextureSlot(slot, data);
+
+                return TextureHandle {
+                    .Index = i,
+                    .Generation = slot.Generation
+                };
+            }
+        }
+
+        // Se não encontrar, cria um novo
+        CheckBool(m_textures.size() < static_cast<size_t>(
+            TextureHandle::InvalidIndex
+        ), "Texture storage has reached its maximum capacity");
+
+        const auto index = static_cast<uint32_t>(m_textures.size());
+        m_textures.emplace_back();
+
+        TextureSlot& slot = m_textures.back();
+        initializeTextureSlot(slot, data);
+
+        return TextureHandle {
+            .Index = index,
+            .Generation = slot.Generation
+        };
+    }
+
+    void VulkanResourceManager::DestroyTexture(TextureHandle handle) {
+        TextureSlot& slot = getTextureSlot(handle);
+        slot.Texture.reset();
+        ++slot.Generation;
+    }
+
+    MaterialHandle VulkanResourceManager::CreateMaterial(const MaterialCreateInfo& data) {
+        // Copiando material
+        MaterialCreateInfo material = data;
+        if (!material.Albedo.IsValid()) material.Albedo = m_defaultTexture;
+        (void)getTextureSlot(material.Albedo);
+
+        // Procura um espaço liberado
+        for (uint32_t i = 0; i < m_materials.size(); ++i) {
+            MaterialSlot& slot = m_materials[i];
+
+            if (!slot.Resource.has_value()) {
+                slot.Resource = material;
+
+                return MaterialHandle {
+                    .Index = i,
+                    .Generation = slot.Generation
+                };
+            }
+        }
+
+        // Se não encontrar, cria um novo
+        CheckBool(m_materials.size() < static_cast<size_t>(
+            MaterialHandle::InvalidIndex
+        ), "Material storage has reached its maximum capacity");
+
+        const auto index = static_cast<uint32_t>(m_materials.size());
+        m_materials.emplace_back();
+
+        MaterialSlot& slot = m_materials.back();
+        slot.Resource = material;
+
+        return MaterialHandle {
+            .Index = index,
+            .Generation = slot.Generation
+        };
+    }
+
+    void VulkanResourceManager::DestroyMaterial(MaterialHandle handle) {
+        MaterialSlot& slot = getMaterialSlot(handle);
+        slot.Resource.reset();
+        ++slot.Generation;
+    }
+
+    VulkanMesh& VulkanResourceManager::GetMesh(MeshHandle handle) {
+        MeshSlot& slot = getMeshSlot(handle);
+        return slot.Resource.value();
+    }
+
+    const MaterialCreateInfo& VulkanResourceManager::GetMaterial(MaterialHandle handle) {
+        MaterialSlot& slot = getMaterialSlot(handle);
+        return slot.Resource.value();
+    }
+
+    VkDescriptorSet VulkanResourceManager::GetTextureDescriptorSet(TextureHandle handle) {
+        TextureSlot& slot = getTextureSlot(handle);
+        return slot.DescriptorSet;
+    }
+
+    VulkanResourceManager::MeshSlot& VulkanResourceManager::getMeshSlot(MeshHandle handle) {
+        CheckBool(handle.IsValid(), "Received an invalid mesh handle");
+        CheckBool(handle.Index < m_meshes.size(), "Mesh handle index is out of bounds");
+
+        MeshSlot& slot = m_meshes[handle.Index];
+        CheckBool(slot.Generation == handle.Generation, "Mesh handle generation does not match");
+        CheckBool(slot.Resource.has_value(), "Mesh handle refers to a destroyed mesh");
+
+        return slot;
+    }
+
+    VulkanResourceManager::TextureSlot& VulkanResourceManager::getTextureSlot(TextureHandle handle) {
+        CheckBool(handle.IsValid(), "Received an invalid texture handle");
+        CheckBool(handle.Index < m_textures.size(), "Texture handle index is out of bounds");
+
+        TextureSlot& slot = m_textures[handle.Index];
+        CheckBool(slot.Generation == handle.Generation, "Texture handle generation does not match");
+        CheckBool(slot.Texture.has_value(), "Texture handle refers to a destroyed texture");
+
+        return slot;
+    }
+
+    VulkanResourceManager::MaterialSlot& VulkanResourceManager::getMaterialSlot(MaterialHandle handle) {
+        CheckBool(handle.IsValid(), "Received an invalid material handle");
+        CheckBool(handle.Index < m_materials.size(), "Material handle index is out of bounds");
+
+        MaterialSlot& slot = m_materials[handle.Index];
+        CheckBool(slot.Generation == handle.Generation, "Material handle generation does not match");
+        CheckBool(slot.Resource.has_value(), "Material handle refers to a destroyed material");
+
+        return slot;
+    }
+
+    void VulkanResourceManager::initializeTextureSlot(TextureSlot& slot, const ImageData& data) {
+        CheckBool(!slot.Texture.has_value(), "Cannot initialize an occupied texture slot");
+
+        if (slot.DescriptorSet == VK_NULL_HANDLE) {
+            const std::array<VkDescriptorSetLayout, 1> layouts {m_textureSetLayout.GetHandle()};
+            const std::vector<VkDescriptorSet> descriptorSets = m_textureDescriptorPool.Allocate(layouts);
+
+            CheckBool(descriptorSets.size() == 1, "Texture descriptor allocation returned an unexpected set count");
+            slot.DescriptorSet = descriptorSets[0];
+
+            CheckBool(slot.DescriptorSet != VK_NULL_HANDLE, "Failed to allocate texture descriptor set");
+        }
+
+        slot.Texture.emplace(
+            m_device.GetLogical(), m_allocator, m_commandPool, m_device.GetQueue(),
+            data
+        );
+
+        VkDescriptorImageInfo imageInfo{
+            .sampler = slot.Texture->GetSampler(),
+            .imageView = slot.Texture->GetImageView(),
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        };
+
+        VkWriteDescriptorSet write{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = slot.DescriptorSet,
+            .dstBinding = 0,
+            .dstArrayElement = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo = &imageInfo
+        };
+
+        vkUpdateDescriptorSets(m_device.GetLogical(), 1, &write, 0, nullptr);
+    }
+
+    void VulkanResourceManager::createDefaultWhiteTexture() {
+        ImageData data {
+            .Pixels = { 255, 255, 255, 255 },
+            .Width = 1, .Height = 1,
+        };
+
+        m_defaultTexture = CreateTexture(data);
+        CheckBool(m_defaultTexture.IsValid(), "Failed to create the default white texture");
+    }
+}

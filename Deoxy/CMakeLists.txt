@@ -29,6 +29,8 @@ target_sources(Deoxy
 
         "src/graphics/vulkan/shading/vk_descriptor_set_layout.cpp"
 
+        "src/graphics/vulkan/managers/vk_resource_manager.cpp"
+
         "src/graphics/renderer.cpp"
         "src/graphics/mesh_generator.cpp"
         "src/graphics/image_loader.cpp"

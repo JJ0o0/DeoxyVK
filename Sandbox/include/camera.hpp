@@ -12,7 +12,7 @@ struct CameraProperties {
     float MinimumFov = 30.0f;
     float MaximumFov = 90.0f;
 
-    float NearPlane = 0.1f;
+    float NearPlane = 0.01f;
     float FarPlane = 100.0f;
 };
 

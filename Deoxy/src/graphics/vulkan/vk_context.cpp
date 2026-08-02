@@ -38,7 +38,11 @@ namespace deoxy::graphics {
               m_device.GetLogical(),
               m_swapchain.GetColorFormat(), m_swapchain.GetDepthFormat(),
               m_cameraSetLayout.GetHandle(), m_textureSetLayout.GetHandle(),
-              "assets/shaders/basic.vert.spv", "assets/shaders/basic.frag.spv") {
+              "assets/shaders/basic.vert.spv", "assets/shaders/basic.frag.spv"),
+          m_resourceManager(
+              m_device, m_allocator, m_commandPool,
+              m_textureSetLayout, m_textureDescriptorPool
+          ) {
         std::array<VkDescriptorSetLayout, FRAMES_IN_FLIGHT> layouts{};
         layouts.fill(m_cameraSetLayout.GetHandle());
 
@@ -46,14 +50,11 @@ namespace deoxy::graphics {
         for (size_t i = 0; i < FRAMES_IN_FLIGHT; ++i) { m_frames[i].SetCameraDescriptorSet(descriptorSets[i]); }
 
         updateCameraDescriptorSets();
-        createDefaultWhiteTexture();
     }
 
     VulkanContext::~VulkanContext() {
         const VkDevice device = m_device.GetLogical();
         if (device != VK_NULL_HANDLE) vkDeviceWaitIdle(device);
-
-        m_meshes.clear();
     }
 
     bool VulkanContext::BeginFrame() {
@@ -291,65 +292,14 @@ namespace deoxy::graphics {
         m_clearColor = color;
     }
 
-    MeshHandle VulkanContext::CreateMesh(std::span<const Vertex> vertices, std::span<const std::uint32_t> indices) {
-        // Primeiro procura um espaço liberado
-        for (uint32_t i = 0; i < m_meshes.size(); ++i) {
-            MeshSlot& slot = m_meshes[i];
-
-            if (!slot.Resource.has_value()) {
-                slot.Resource.emplace(
-                    m_allocator, m_commandPool, m_device.GetQueue(),
-                    vertices, indices
-                );
-
-                return MeshHandle {
-                    .Index = i,
-                    .Generation = slot.Generation
-                };
-            }
-        }
-
-        // Se não encontrar, cria um novo
-        vulkan::CheckBool(m_meshes.size() < static_cast<size_t>(
-            MeshHandle::InvalidIndex
-        ), "Mesh storage has reached its maximum capacity");
-
-        const auto index = static_cast<uint32_t>(m_meshes.size());
-        m_meshes.emplace_back();
-
-        MeshSlot& slot = m_meshes.back();
-        slot.Resource.emplace(
-            m_allocator, m_commandPool, m_device.GetQueue(),
-            vertices, indices
-        );
-
-        return MeshHandle {
-            .Index = index,
-            .Generation = slot.Generation
-        };
-    }
-
-    void VulkanContext::DestroyMesh(MeshHandle handle) {
-        vulkan::CheckBool(!m_frameActive, "Cannot destroy a mesh during an active frame");
-
-        MeshSlot& slot = getMeshSlot(handle);
-        vulkan::CheckResult(vkDeviceWaitIdle(m_device.GetLogical()));
-
-        slot.Resource.reset();
-        ++slot.Generation;
-    }
-
     void VulkanContext::DrawMesh(MeshHandle meshHandle, MaterialHandle materialHandle, const math::Mat4& modelMatrix) {
         vulkan::CheckBool(m_frameActive, "DrawMesh must be called between BeginFrame and EndFrame");
 
-        MeshSlot& meshSlot = getMeshSlot(meshHandle);
+        vulkan::VulkanMesh& mesh = m_resourceManager.GetMesh(meshHandle);
 
-        MaterialSlot& materialSlot = getMaterialSlot(materialHandle);
-        const MaterialCreateInfo& materialCI = materialSlot.Resource.value();
-
-        TextureSlot& textureSlot = getTextureSlot(materialCI.Albedo);
-
-        VkCommandBuffer commandBuffer = getActiveCommandBuffer();
+        const MaterialCreateInfo& materialCI = m_resourceManager.GetMaterial(materialHandle);
+        const VkDescriptorSet textureDescriptor = m_resourceManager.GetTextureDescriptorSet(materialCI.Albedo);
+        const VkCommandBuffer commandBuffer = getActiveCommandBuffer();
 
         vulkan::PushConstants pushConstants {
             .ModelMatrix = modelMatrix,
@@ -369,168 +319,40 @@ namespace deoxy::graphics {
             VK_PIPELINE_BIND_POINT_GRAPHICS,
             m_pipeline.GetLayout(),
             1, 1,
-            &textureSlot.DescriptorSet,
+            &textureDescriptor,
             0, nullptr
         );
 
-        meshSlot.Resource->Draw(commandBuffer);
+        mesh.Draw(commandBuffer);
+    }
+
+    MeshHandle VulkanContext::CreateMesh(std::span<const Vertex> vertices, std::span<const std::uint32_t> indices) {
+        return m_resourceManager.CreateMesh(vertices, indices);
+    }
+
+    void VulkanContext::DestroyMesh(MeshHandle handle) {
+        vulkan::CheckBool(!m_frameActive, "Cannot destroy a mesh during an active frame");
+        vulkan::CheckResult(vkDeviceWaitIdle(m_device.GetLogical()));
+        m_resourceManager.DestroyMesh(handle);
     }
 
     TextureHandle VulkanContext::CreateTexture(const ImageData& data) {
-        // Primeiro procura um espaço liberado
-        for (uint32_t i = 0; i < m_textures.size(); ++i) {
-            TextureSlot& slot = m_textures[i];
-
-            if (!slot.Texture.has_value()) {
-                initializeTextureSlot(slot, data);
-
-                return TextureHandle {
-                    .Index = i,
-                    .Generation = slot.Generation
-                };
-            }
-        }
-
-        // Se não encontrar, cria um novo
-        vulkan::CheckBool(m_textures.size() < static_cast<size_t>(
-            TextureHandle::InvalidIndex
-        ), "Texture storage has reached its maximum capacity");
-
-        const auto index = static_cast<uint32_t>(m_textures.size());
-        m_textures.emplace_back();
-
-        TextureSlot& slot = m_textures.back();
-        initializeTextureSlot(slot, data);
-
-        return TextureHandle {
-            .Index = index,
-            .Generation = slot.Generation
-        };
+        return m_resourceManager.CreateTexture(data);
     }
 
     void VulkanContext::DestroyTexture(TextureHandle handle) {
         vulkan::CheckBool(!m_frameActive, "Cannot destroy a texture during an active frame");
-
-        TextureSlot& slot = getTextureSlot(handle);
         vulkan::CheckResult(vkDeviceWaitIdle(m_device.GetLogical()));
-
-        slot.Texture.reset();
-        ++slot.Generation;
+        m_resourceManager.DestroyTexture(handle);
     }
 
     MaterialHandle VulkanContext::CreateMaterial(const MaterialCreateInfo& data) {
-        // Copiando material
-        MaterialCreateInfo material = data;
-        if (!material.Albedo.IsValid()) material.Albedo = m_defaultTexture;
-        (void)getTextureSlot(material.Albedo);
-
-        // Procura um espaço liberado
-        for (uint32_t i = 0; i < m_materials.size(); ++i) {
-            MaterialSlot& slot = m_materials[i];
-
-            if (!slot.Resource.has_value()) {
-                slot.Resource = material;
-
-                return MaterialHandle {
-                    .Index = i,
-                    .Generation = slot.Generation
-                };
-            }
-        }
-
-        // Se não encontrar, cria um novo
-        vulkan::CheckBool(m_materials.size() < static_cast<size_t>(
-            MaterialHandle::InvalidIndex
-        ), "Material storage has reached its maximum capacity");
-
-        const auto index = static_cast<uint32_t>(m_materials.size());
-        m_materials.emplace_back();
-
-        MaterialSlot& slot = m_materials.back();
-        slot.Resource = material;
-
-        return MaterialHandle {
-            .Index = index,
-            .Generation = slot.Generation
-        };
+        return m_resourceManager.CreateMaterial(data);
     }
 
     void VulkanContext::DestroyMaterial(MaterialHandle handle) {
         vulkan::CheckBool(!m_frameActive, "Cannot destroy a material during an active frame");
-
-        MaterialSlot& slot = getMaterialSlot(handle);
-        slot.Resource.reset();
-        ++slot.Generation;
-    }
-
-    VulkanContext::MeshSlot& VulkanContext::getMeshSlot(MeshHandle handle) {
-        vulkan::CheckBool(handle.IsValid(), "Received an invalid mesh handle");
-        vulkan::CheckBool(handle.Index < m_meshes.size(), "Mesh handle index is out of bounds");
-
-        MeshSlot& slot = m_meshes[handle.Index];
-        vulkan::CheckBool(slot.Generation == handle.Generation, "Mesh handle generation does not match");
-        vulkan::CheckBool(slot.Resource.has_value(), "Mesh handle refers to a destroyed mesh");
-
-        return slot;
-    }
-
-    VulkanContext::TextureSlot& VulkanContext::getTextureSlot(TextureHandle handle) {
-        vulkan::CheckBool(handle.IsValid(), "Received an invalid texture handle");
-        vulkan::CheckBool(handle.Index < m_textures.size(), "Texture handle index is out of bounds");
-
-        TextureSlot& slot = m_textures[handle.Index];
-        vulkan::CheckBool(slot.Generation == handle.Generation, "Texture handle generation does not match");
-        vulkan::CheckBool(slot.Texture.has_value(), "Texture handle refers to a destroyed texture");
-
-        return slot;
-    }
-
-    void VulkanContext::initializeTextureSlot(TextureSlot& slot, const ImageData& data) {
-        vulkan::CheckBool(!slot.Texture.has_value(), "Cannot initialize an occupied texture slot");
-
-        if (slot.DescriptorSet == VK_NULL_HANDLE) {
-            const std::array<VkDescriptorSetLayout, 1> layouts {m_textureSetLayout.GetHandle()};
-            const std::vector<VkDescriptorSet> descriptorSets = m_textureDescriptorPool.Allocate(layouts);
-
-            vulkan::CheckBool(descriptorSets.size() == 1, "Texture descriptor allocation returned an unexpected set count");
-            slot.DescriptorSet = descriptorSets[0];
-
-            vulkan::CheckBool(slot.DescriptorSet != VK_NULL_HANDLE, "Failed to allocate texture descriptor set");
-        }
-
-        slot.Texture.emplace(
-            m_device.GetLogical(), m_allocator, m_commandPool, m_device.GetQueue(),
-            data
-        );
-
-        VkDescriptorImageInfo imageInfo{
-            .sampler = slot.Texture->GetSampler(),
-            .imageView = slot.Texture->GetImageView(),
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-        };
-
-        VkWriteDescriptorSet write{
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet = slot.DescriptorSet,
-            .dstBinding = 0,
-            .dstArrayElement = 0,
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .pImageInfo = &imageInfo
-        };
-
-        vkUpdateDescriptorSets(m_device.GetLogical(), 1, &write, 0, nullptr);
-    }
-
-    VulkanContext::MaterialSlot& VulkanContext::getMaterialSlot(MaterialHandle handle) {
-        vulkan::CheckBool(handle.IsValid(), "Received an invalid material handle");
-        vulkan::CheckBool(handle.Index < m_materials.size(), "Material handle index is out of bounds");
-
-        MaterialSlot& slot = m_materials[handle.Index];
-        vulkan::CheckBool(slot.Generation == handle.Generation, "Material handle generation does not match");
-        vulkan::CheckBool(slot.Resource.has_value(), "Material handle refers to a destroyed material");
-
-        return slot;
+        m_resourceManager.DestroyMaterial(handle);
     }
 
     void VulkanContext::SetCamera(const math::Mat4& view, const math::Mat4& projection) {
@@ -560,16 +382,6 @@ namespace deoxy::graphics {
 
             vkUpdateDescriptorSets(m_device.GetLogical(), 1, &write, 0, nullptr);
         }
-    }
-
-    void VulkanContext::createDefaultWhiteTexture() {
-        ImageData data {
-            .Pixels = { 255, 255, 255, 255 },
-            .Width = 1, .Height = 1,
-        };
-
-        m_defaultTexture = CreateTexture(data);
-        vulkan::CheckBool(m_defaultTexture.IsValid(), "Failed to create the default white texture");
     }
 
     VkCommandBuffer VulkanContext::getActiveCommandBuffer() const { return m_frames[m_currentFrame].GetCommandBuffer(); }
