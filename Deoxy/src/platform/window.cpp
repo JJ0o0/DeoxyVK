@@ -9,6 +9,7 @@
 namespace deoxy::platform {
     struct Window::Impl {
         SDL_Window* Handle = nullptr;
+        SDL_Surface* Icon = nullptr;
         bool ShouldClose = false;
     };
 
@@ -140,6 +141,11 @@ namespace deoxy::platform {
     Window::~Window() { Destroy(); }
 
     void Window::Destroy() {
+        if (m_impl->Icon) {
+            SDL_DestroySurface(m_impl->Icon);
+            m_impl->Icon = nullptr;
+        }
+
         if (m_impl->Handle) {
             SDL_DestroyWindow(m_impl->Handle);
             m_impl->Handle = nullptr;
@@ -198,9 +204,53 @@ namespace deoxy::platform {
 
     bool Window::ShouldClose() const { return m_impl->ShouldClose; }
 
+    void Window::SetTitle(std::string_view title) {
+        std::string newTitle{title};
+
+        const bool success = SDL_SetWindowTitle(m_impl->Handle, newTitle.c_str());
+        if (!success) {
+            Logger::Error("Could not change window title: {}", SDL_GetError());
+            return;
+        }
+
+        m_properties.Title = std::move(newTitle);
+    }
+
+    void Window::SetIcon(const std::filesystem::path& path) {
+        const std::string pathString = path.string();
+
+        SDL_Surface* icon = SDL_LoadSurface(pathString.c_str());
+        if (icon == nullptr) {
+            Logger::Error("Could not change window icon: {}", SDL_GetError());
+            return;
+        }
+
+        const bool success = SDL_SetWindowIcon(m_impl->Handle, icon);
+        if (!success) {
+            Logger::Error("Could not change window icon: {}", SDL_GetError());
+            return;
+        }
+
+        if (m_impl->Icon != nullptr) {
+            SDL_DestroySurface(m_impl->Icon);
+        }
+
+        m_impl->Icon = icon;
+    }
+
+    void Window::SetFullscreen(bool fullscreen) {
+        const bool success = SDL_SetWindowFullscreen(m_impl->Handle, fullscreen);
+        if (!success) Logger::Error("Could not change fullscreen state: {}", SDL_GetError());
+    }
+
     void Window::SetRelativeMouseMode(bool enabled) {
         const bool success = SDL_SetWindowRelativeMouseMode(m_impl->Handle, enabled);
         if (!success) Logger::Error("Could not toggle to relative mouse mode: {}", SDL_GetError());
+    }
+
+    bool Window::IsFullscreen() const {
+        const SDL_WindowFlags flags = SDL_GetWindowFlags(m_impl->Handle);
+        return (flags & SDL_WINDOW_FULLSCREEN) != 0;
     }
 
     const WindowProperties& Window::GetProperties() const { return m_properties; }

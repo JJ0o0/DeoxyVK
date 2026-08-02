@@ -1,6 +1,7 @@
 #pragma once
 
 #include <deoxy/input/input.hpp>
+#include <filesystem>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -31,10 +32,14 @@ namespace deoxy::platform {
 
             bool ShouldClose() const;
 
+            void SetTitle(std::string_view title);
+            void SetIcon(const std::filesystem::path& path);
+            void SetFullscreen(bool fullscreen);
             void SetRelativeMouseMode(bool enabled);
 
-            float GetAspectRatio() const { return static_cast<float>(m_properties.Width) / static_cast<float>(m_properties.Height); }
+            bool IsFullscreen() const;
 
+            float GetAspectRatio() const { return static_cast<float>(m_properties.Width) / static_cast<float>(m_properties.Height); }
             const WindowProperties& GetProperties() const;
         private:
             friend class deoxy::graphics::VulkanContext;

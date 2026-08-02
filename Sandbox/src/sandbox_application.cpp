@@ -20,10 +20,13 @@ void SandboxApplication::OnStart() {
     m_mesh = renderer.CreateMesh(cube);
     m_checker = renderer.CreateTexture("assets/textures/checker.png");
 
-    GetWindow().SetRelativeMouseMode(m_mouseLocked);
+    auto& window = GetWindow();
+    window.SetIcon("assets/icon.png");
+    window.SetRelativeMouseMode(m_mouseLocked);
 }
 
 void SandboxApplication::OnUpdate(float deltaTime) {
+    auto& window = GetWindow();
     auto& renderer = GetRenderer();
     const auto& input = GetInput();
 
@@ -31,14 +34,15 @@ void SandboxApplication::OnUpdate(float deltaTime) {
     m_rotation += rotation_speed * deltaTime;
 
     if (m_mouseLocked) m_camera.Update(input, deltaTime);
-    renderer.SetCamera(m_camera.GetView(), m_camera.GetProjection(GetWindow().GetAspectRatio()));
+    renderer.SetCamera(m_camera.GetView(), m_camera.GetProjection(window.GetAspectRatio()));
 
     if (input.WasPressed(Key::Escape)) {
         m_mouseLocked = !m_mouseLocked;
-        GetWindow().SetRelativeMouseMode(m_mouseLocked);
+        window.SetRelativeMouseMode(m_mouseLocked);
     }
 
     if (input.WasPressed(Key::F8)) Quit();
+    if (input.WasPressed(Key::F11)) window.SetFullscreen(!window.IsFullscreen());
 }
 
 void SandboxApplication::OnRender() {
@@ -49,7 +53,8 @@ void SandboxApplication::OnRender() {
     model = RotateZ(model, ToRadians(m_rotation));
     model = Scale(model, Vec3{0.5f});
 
-    GetRenderer().DrawMesh(m_mesh, m_checker, model);
+    auto& renderer = GetRenderer();
+    renderer.DrawMesh(m_mesh, m_checker, model);
 }
 
 void SandboxApplication::OnQuit() {
