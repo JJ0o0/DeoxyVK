@@ -6,6 +6,8 @@
 #include "../components/vk_commands.hpp"
 #include "../components/vk_helper.hpp"
 
+#include <deoxy/math/scalar.hpp>
+
 namespace deoxy::graphics::vulkan {
     VulkanTexture::VulkanTexture(
         VkDevice device,
@@ -13,16 +15,18 @@ namespace deoxy::graphics::vulkan {
         const VulkanCommandPool& commandPool,
         VkQueue queue,
         const ImageData& imageData
-    ) : m_image(
+    ) : m_mipLevels(calculateMipLevels(imageData.Width, imageData.Height)),
+        m_image(
             device, allocator.GetHandle(),
             VkExtent2D{
                 .width = imageData.Width,
                 .height = imageData.Height
             },
             VK_FORMAT_R8G8B8A8_SRGB,
-            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-            VK_IMAGE_ASPECT_COLOR_BIT
-        ), m_sampler(device){
+            VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            VK_IMAGE_ASPECT_COLOR_BIT,
+            m_mipLevels
+        ), m_sampler(device, m_mipLevels){
         CheckBool(queue != VK_NULL_HANDLE, "Texture received a null queue");
         CheckBool(!imageData.Pixels.empty(), "Texture received empty pixel data");
 
@@ -41,7 +45,18 @@ namespace deoxy::graphics::vulkan {
 
         CopyBufferToImageImmediate(
             queue, commandPool, stagingBuffer.GetHandle(), m_image.GetImage(),
-            imageData.Width, imageData.Height
+            imageData.Width, imageData.Height, m_mipLevels
         );
+    }
+
+    uint32_t VulkanTexture::calculateMipLevels(uint32_t width, uint32_t height) {
+        CheckBool(width > 0, "Texture received invalid width for mip levels calculation");
+        CheckBool(height > 0, "Texture received invalid height for mip levels calculation");
+
+        return math::Floor(
+            math::Log2(
+                static_cast<float>(math::Max(width, height))
+            )
+        ) + 1;
     }
 }

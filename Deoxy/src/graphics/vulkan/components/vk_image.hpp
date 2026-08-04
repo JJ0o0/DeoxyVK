@@ -13,7 +13,8 @@ namespace deoxy::graphics::vulkan {
                 VkExtent2D extent,
                 VkFormat format,
                 VkImageUsageFlags usage,
-                VkImageAspectFlags aspectMask
+                VkImageAspectFlags aspectMask,
+                uint32_t mipLevels
             );
 
             ~VulkanImage();

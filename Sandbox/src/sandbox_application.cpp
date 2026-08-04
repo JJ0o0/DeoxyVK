@@ -22,8 +22,7 @@ void SandboxApplication::OnStart() {
     m_mesh = renderer.CreateMesh(cube);
     m_checker = renderer.CreateTexture("assets/textures/checker.png");
     m_checkerMaterial = renderer.CreateMaterial(MaterialCreateInfo {
-        .Albedo = m_checker,
-        .Tint = Color{0.5f, 0.12f, 0.8f}
+        .Albedo = m_checker
     });
 
     // Setando configurações da janela

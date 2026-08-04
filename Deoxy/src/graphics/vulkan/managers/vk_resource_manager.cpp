@@ -6,6 +6,8 @@
 #include "../components/vk_device.hpp"
 #include "../components/vk_helper.hpp"
 
+#include <array>
+
 namespace deoxy::graphics::vulkan {
     VulkanResourceManager::VulkanResourceManager(
         VulkanDevice& device,
@@ -66,7 +68,11 @@ namespace deoxy::graphics::vulkan {
     }
 
     TextureHandle VulkanResourceManager::CreateTexture(const ImageData& data) {
-        // Primeiro procura um espaço liberado
+        // Verificando formato atual
+        constexpr VkFormat textureFormat = VK_FORMAT_R8G8B8A8_SRGB;
+        CheckBool(hasMipmappingSupport(m_device.GetPhysical(), textureFormat), "Texture format doesn't support linear mipmap generation");
+
+        // Procura um espaço liberado
         for (uint32_t i = 0; i < m_textures.size(); ++i) {
             TextureSlot& slot = m_textures[i];
 
@@ -239,5 +245,20 @@ namespace deoxy::graphics::vulkan {
 
         m_defaultTexture = CreateTexture(data);
         CheckBool(m_defaultTexture.IsValid(), "Failed to create the default white texture");
+    }
+
+    bool VulkanResourceManager::hasMipmappingSupport(VkPhysicalDevice physicalDevice, VkFormat format) {
+        CheckBool(physicalDevice != VK_NULL_HANDLE, "Cannot verify mipmapping support with a unspecified physical device");
+        CheckBool(format != VK_FORMAT_UNDEFINED, "Cannot verify mipmapping support with a unspecified format");
+
+        VkFormatProperties formatProps{};
+        vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &formatProps);
+
+        const VkFormatFeatureFlags requiredFeatures = VK_FORMAT_FEATURE_BLIT_SRC_BIT |
+                                                      VK_FORMAT_FEATURE_BLIT_DST_BIT |
+                                                      VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
+
+        const bool hasRequired = (formatProps.optimalTilingFeatures & requiredFeatures) == requiredFeatures;
+        return hasRequired;
     }
 }

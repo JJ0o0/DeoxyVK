@@ -70,5 +70,6 @@ namespace deoxy::graphics::vulkan {
 
             void initializeTextureSlot(TextureSlot& slot, const ImageData& data);
             void createDefaultWhiteTexture();
+            bool hasMipmappingSupport(VkPhysicalDevice physicalDevice, VkFormat format);
     };
 }

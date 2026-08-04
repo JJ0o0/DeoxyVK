@@ -4,9 +4,10 @@
 #include <utility>
 
 namespace deoxy::graphics::vulkan {
-    VulkanSampler::VulkanSampler(VkDevice device)
+    VulkanSampler::VulkanSampler(VkDevice device, uint32_t mipLevels)
         : m_device(device) {
         CheckBool(m_device != VK_NULL_HANDLE, "Sampler received a null logical device");
+        CheckBool(mipLevels > 0, "Sampler received invalid mip levels");
 
         VkSamplerCreateInfo samplerCI {
             .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
@@ -19,8 +20,8 @@ namespace deoxy::graphics::vulkan {
             .mipLodBias = 0,
             .anisotropyEnable = VK_FALSE,
             .compareEnable = VK_FALSE,
-            .minLod = 0,
-            .maxLod = 0,
+            .minLod = 0.0f,
+            .maxLod = static_cast<float>(mipLevels - 1),
             .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
             .unnormalizedCoordinates = VK_FALSE,
         };

@@ -10,7 +10,8 @@ namespace deoxy::graphics::vulkan {
         VkExtent2D extent,
         VkFormat format,
         VkImageUsageFlags usage,
-        VkImageAspectFlags aspectMask
+        VkImageAspectFlags aspectMask,
+        uint32_t mipLevels
     ) : m_device(device), m_allocator(allocator),
         m_format(format), m_extent(extent) {
         CheckBool(m_device != VK_NULL_HANDLE, "VulkanImage received a null logical device");
@@ -29,7 +30,7 @@ namespace deoxy::graphics::vulkan {
                 .height = m_extent.height,
                 .depth = 1
             },
-            .mipLevels = 1,
+            .mipLevels = mipLevels,
             .arrayLayers = 1,
             .samples = VK_SAMPLE_COUNT_1_BIT,
             .tiling = VK_IMAGE_TILING_OPTIMAL,
@@ -53,7 +54,7 @@ namespace deoxy::graphics::vulkan {
                 .subresourceRange = {
                     .aspectMask = aspectMask,
                     .baseMipLevel = 0,
-                    .levelCount = 1,
+                    .levelCount = mipLevels,
                     .baseArrayLayer = 0,
                     .layerCount = 1
                 }

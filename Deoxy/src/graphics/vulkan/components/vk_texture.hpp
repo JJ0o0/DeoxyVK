@@ -32,7 +32,10 @@ namespace deoxy::graphics::vulkan {
         VkImageView GetImageView() const { return m_image.GetImageView(); }
         VkSampler GetSampler() const { return m_sampler.GetHandle(); }
     private:
+        uint32_t m_mipLevels;
         VulkanImage m_image;
         VulkanSampler m_sampler;
+
+        uint32_t calculateMipLevels(uint32_t width, uint32_t height);
     };
 }
