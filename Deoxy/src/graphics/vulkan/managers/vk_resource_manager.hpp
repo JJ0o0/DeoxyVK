@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../graphical/vk_texture_create_info.hpp"
 #include "../components/vk_resource_slot.hpp"
 #include "../components/vk_texture.hpp"
 #include "../graphical/vk_mesh.hpp"
@@ -7,6 +8,7 @@
 #include <deoxy/graphics/graphical_handles.hpp>
 #include <deoxy/graphics/image_data.hpp>
 #include <deoxy/graphics/material.hpp>
+#include <deoxy/graphics/texture.hpp>
 #include <deoxy/graphics/vertex.hpp>
 
 #include <optional>
@@ -34,7 +36,7 @@ namespace deoxy::graphics::vulkan {
             MeshHandle CreateMesh(std::span<const Vertex> vertices, std::span<const uint32_t> indices);
             void DestroyMesh(MeshHandle handle);
 
-            TextureHandle CreateTexture(const ImageData& data);
+            TextureHandle CreateTexture(const ImageData& data, const TextureCreateInfo& createInfo);
             void DestroyTexture(TextureHandle handle);
 
             MaterialHandle CreateMaterial(const MaterialCreateInfo& data);
@@ -68,8 +70,13 @@ namespace deoxy::graphics::vulkan {
             std::vector<TextureSlot> m_textures;
             std::vector<MaterialSlot> m_materials;
 
-            void initializeTextureSlot(TextureSlot& slot, const ImageData& data);
+            void initializeTextureSlot(const VulkanTextureCreateInfo& createInfo, TextureSlot& slot, const ImageData& data);
             void createDefaultWhiteTexture();
             bool hasMipmappingSupport(VkPhysicalDevice physicalDevice, VkFormat format);
+
+            VkFormat getTextureFormat(TextureColorSpace colorSpace);
+            VkFilter getTextureFilter(TextureFilter filter);
+            VkSamplerMipmapMode getTextureMipmapFilter(TextureMipmapFilter mipmapFilter);
+            VkSamplerAddressMode getTextureWrapMode(TextureWrapMode wrapMode);
     };
 }

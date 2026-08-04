@@ -1,10 +1,13 @@
 #include "vk_resource_manager.hpp"
+#include "../graphical/vk_texture_create_info.hpp"
 #include "../shading/vk_descriptor_set_layout.hpp"
 #include "../components/vk_descriptor_pool.hpp"
 #include "../components/vk_command_pool.hpp"
 #include "../components/vk_allocator.hpp"
 #include "../components/vk_device.hpp"
 #include "../components/vk_helper.hpp"
+
+#include <deoxy/math/scalar.hpp>
 
 #include <array>
 
@@ -67,17 +70,40 @@ namespace deoxy::graphics::vulkan {
         ++slot.Generation;
     }
 
-    TextureHandle VulkanResourceManager::CreateTexture(const ImageData& data) {
-        // Verificando formato atual
-        constexpr VkFormat textureFormat = VK_FORMAT_R8G8B8A8_SRGB;
-        CheckBool(hasMipmappingSupport(m_device.GetPhysical(), textureFormat), "Texture format doesn't support linear mipmap generation");
+    TextureHandle VulkanResourceManager::CreateTexture(const ImageData& data, const TextureCreateInfo& createInfo) {
+        // Verificando configurações
+        const bool anisotropyEnabled = createInfo.EnableAnisotropy && m_device.SupportsSamplerAnisotropy();
+        if (anisotropyEnabled) CheckBool(createInfo.AnisotropyLevel >= 1.0f, "Texture anisotropy level must be at least 1.0");
+
+        const float anisotropyLevel = anisotropyEnabled
+            ? math::Clamp(
+                createInfo.AnisotropyLevel,
+                1.0f,
+                m_device.GetMaxSamplerAnisotropy()
+            ) : 1.0f;
+
+        VulkanTextureCreateInfo vulkanCI {
+            .Format = getTextureFormat(createInfo.ColorSpace),
+            .Filter = getTextureFilter(createInfo.Filter),
+            .MipmapFilter = getTextureMipmapFilter(createInfo.MipmapFilter),
+            .WrapMode = getTextureWrapMode(createInfo.WrapMode),
+            .GenerateMipmaps = createInfo.GenerateMipmaps,
+            .AnisotropyEnabled = anisotropyEnabled,
+            .MaxAnisotropy = anisotropyLevel
+        };
+
+        if (createInfo.GenerateMipmaps) {
+            CheckBool(hasMipmappingSupport(
+                m_device.GetPhysical(), vulkanCI.Format
+            ), "Texture format doesn't support linear mipmap generation");
+        }
 
         // Procura um espaço liberado
         for (uint32_t i = 0; i < m_textures.size(); ++i) {
             TextureSlot& slot = m_textures[i];
 
             if (!slot.Texture.has_value()) {
-                initializeTextureSlot(slot, data);
+                initializeTextureSlot(vulkanCI, slot, data);
 
                 return TextureHandle {
                     .Index = i,
@@ -95,7 +121,7 @@ namespace deoxy::graphics::vulkan {
         m_textures.emplace_back();
 
         TextureSlot& slot = m_textures.back();
-        initializeTextureSlot(slot, data);
+        initializeTextureSlot(vulkanCI, slot, data);
 
         return TextureHandle {
             .Index = index,
@@ -200,7 +226,7 @@ namespace deoxy::graphics::vulkan {
         return slot;
     }
 
-    void VulkanResourceManager::initializeTextureSlot(TextureSlot& slot, const ImageData& data) {
+    void VulkanResourceManager::initializeTextureSlot(const VulkanTextureCreateInfo& createInfo, TextureSlot& slot, const ImageData& data) {
         CheckBool(!slot.Texture.has_value(), "Cannot initialize an occupied texture slot");
 
         if (slot.DescriptorSet == VK_NULL_HANDLE) {
@@ -215,7 +241,7 @@ namespace deoxy::graphics::vulkan {
 
         slot.Texture.emplace(
             m_device.GetLogical(), m_allocator, m_commandPool, m_device.GetQueue(),
-            data
+            data, createInfo
         );
 
         VkDescriptorImageInfo imageInfo{
@@ -243,7 +269,7 @@ namespace deoxy::graphics::vulkan {
             .Width = 1, .Height = 1,
         };
 
-        m_defaultTexture = CreateTexture(data);
+        m_defaultTexture = CreateTexture(data, {});
         CheckBool(m_defaultTexture.IsValid(), "Failed to create the default white texture");
     }
 
@@ -260,5 +286,38 @@ namespace deoxy::graphics::vulkan {
 
         const bool hasRequired = (formatProps.optimalTilingFeatures & requiredFeatures) == requiredFeatures;
         return hasRequired;
+    }
+
+    VkFormat VulkanResourceManager::getTextureFormat(TextureColorSpace colorSpace) {
+        switch (colorSpace) {
+            case TextureColorSpace::SRGB: return VK_FORMAT_R8G8B8A8_SRGB;
+            case TextureColorSpace::Linear: return VK_FORMAT_R8G8B8A8_UNORM;
+            default: return VK_FORMAT_R8G8B8A8_SRGB;
+        }
+    }
+
+    VkFilter VulkanResourceManager::getTextureFilter(TextureFilter filter) {
+        switch (filter) {
+            case TextureFilter::Linear: return VK_FILTER_LINEAR;
+            case TextureFilter::Nearest: return VK_FILTER_NEAREST;
+            default: return VK_FILTER_LINEAR;
+        }
+    }
+
+    VkSamplerMipmapMode VulkanResourceManager::getTextureMipmapFilter(TextureMipmapFilter mipmapFilter) {
+        switch (mipmapFilter) {
+            case TextureMipmapFilter::Linear: return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            case TextureMipmapFilter::Nearest: return VK_SAMPLER_MIPMAP_MODE_NEAREST;
+            default: return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        }
+    }
+
+    VkSamplerAddressMode VulkanResourceManager::getTextureWrapMode(TextureWrapMode wrapMode) {
+        switch (wrapMode) {
+            case TextureWrapMode::Repeat: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            case TextureWrapMode::MirroredRepeat: return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+            case TextureWrapMode::ClampToEdge: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            default: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        }
     }
 }

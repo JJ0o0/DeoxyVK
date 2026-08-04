@@ -2,6 +2,7 @@
 
 #include <deoxy/graphics/graphical_handles.hpp>
 #include <deoxy/graphics/mesh_data.hpp>
+#include <deoxy/graphics/texture.hpp>
 #include <deoxy/graphics/material.hpp>
 #include <deoxy/graphics/vertex.hpp>
 #include <deoxy/graphics/color.hpp>
@@ -33,7 +34,8 @@ namespace deoxy::graphics {
             void DestroyMesh(MeshHandle mesh);
             void DrawMesh(MeshHandle mesh, MaterialHandle material, const math::Mat4& modelMatrix);
 
-            TextureHandle CreateTexture(const std::filesystem::path& path);
+            TextureHandle CreateTexture(const ImageData& data, const TextureCreateInfo& createInfo = {});
+            TextureHandle CreateTexture(const std::filesystem::path& path, const TextureCreateInfo& createInfo = {});
             void DestroyTexture(TextureHandle handle);
 
             MaterialHandle CreateMaterial(const MaterialCreateInfo& createInfo);

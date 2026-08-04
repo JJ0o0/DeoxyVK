@@ -46,13 +46,17 @@ namespace deoxy::graphics::vulkan {
             }
         }
 
-        // Pegando as informações e mostrando
-        VkPhysicalDeviceProperties2 deviceProperties {
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2
-        };
+        // Pegando as informações e verificando support a Sampler Anisotropy
+        VkPhysicalDeviceFeatures features{};
+        vkGetPhysicalDeviceFeatures(m_physicalDevice, &features);
 
-        vkGetPhysicalDeviceProperties2(m_physicalDevice, &deviceProperties);
-        platform::Logger::Info("GPU: {}", deviceProperties.properties.deviceName);
+        VkPhysicalDeviceProperties properties{};
+        vkGetPhysicalDeviceProperties(m_physicalDevice, &properties);
+
+        m_supportsSamplerAnisotropy = features.samplerAnisotropy == VK_TRUE;
+        m_maxSamplerAnisotropy = m_supportsSamplerAnisotropy ? properties.limits.maxSamplerAnisotropy : 1.0f;
+
+        platform::Logger::Info("GPU: {}", properties.deviceName);
     }
 
     void VulkanDevice::findQueueFamilies() {
@@ -121,7 +125,7 @@ namespace deoxy::graphics::vulkan {
         };
 
         VkPhysicalDeviceFeatures features10 {
-            .samplerAnisotropy = VK_TRUE
+            .samplerAnisotropy = m_supportsSamplerAnisotropy ? VK_TRUE : VK_FALSE
         };
 
         // Criando o Device

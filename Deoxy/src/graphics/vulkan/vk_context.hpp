@@ -52,7 +52,7 @@ namespace deoxy::graphics {
             MeshHandle CreateMesh(std::span<const Vertex> vertices, std::span<const uint32_t> indices);
             void DestroyMesh(MeshHandle handle);
 
-            TextureHandle CreateTexture(const ImageData& data);
+            TextureHandle CreateTexture(const ImageData& data, const TextureCreateInfo& createInfo);
             void DestroyTexture(TextureHandle handle);
 
             MaterialHandle CreateMaterial(const MaterialCreateInfo& data);

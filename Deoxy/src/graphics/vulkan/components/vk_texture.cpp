@@ -14,20 +14,32 @@ namespace deoxy::graphics::vulkan {
         const VulkanAllocator& allocator,
         const VulkanCommandPool& commandPool,
         VkQueue queue,
-        const ImageData& imageData
-    ) : m_mipLevels(calculateMipLevels(imageData.Width, imageData.Height)),
+        const ImageData& imageData,
+        const VulkanTextureCreateInfo& createInfo
+    ) : m_mipLevels(
+            createInfo.GenerateMipmaps
+            ? calculateMipLevels(imageData.Width, imageData.Height)
+            : 1
+        ),
         m_image(
             device, allocator.GetHandle(),
             VkExtent2D{
                 .width = imageData.Width,
                 .height = imageData.Height
             },
-            VK_FORMAT_R8G8B8A8_SRGB,
-            VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            createInfo.Format,
+            getTextureUsage(createInfo.GenerateMipmaps),
             VK_IMAGE_ASPECT_COLOR_BIT,
             m_mipLevels
-        ), m_sampler(device, m_mipLevels){
+        ), m_sampler(
+            device,
+            m_mipLevels,
+            createInfo.Filter, createInfo.MipmapFilter,
+            createInfo.WrapMode,
+            createInfo.AnisotropyEnabled, createInfo.MaxAnisotropy
+        ) {
         CheckBool(queue != VK_NULL_HANDLE, "Texture received a null queue");
+        CheckBool(createInfo.Format != VK_FORMAT_UNDEFINED, "Texture received an undefined format");
         CheckBool(!imageData.Pixels.empty(), "Texture received empty pixel data");
 
         const size_t expectedSize = static_cast<size_t>(imageData.Width) * static_cast<size_t>(imageData.Height) * 4;
@@ -58,5 +70,11 @@ namespace deoxy::graphics::vulkan {
                 static_cast<float>(math::Max(width, height))
             )
         ) + 1;
+    }
+
+    VkImageUsageFlags VulkanTexture::getTextureUsage(bool generateMipmaps) {
+        VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        if (generateMipmaps) usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        return usage;
     }
 }

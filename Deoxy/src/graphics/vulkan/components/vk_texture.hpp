@@ -2,6 +2,7 @@
 
 #include "vk_image.hpp"
 #include "vk_sampler.hpp"
+#include "../graphical/vk_texture_create_info.hpp"
 
 #include <deoxy/graphics/image_data.hpp>
 
@@ -17,7 +18,8 @@ namespace deoxy::graphics::vulkan {
             const VulkanAllocator& allocator,
             const VulkanCommandPool& commandPool,
             VkQueue queue,
-            const ImageData& imageData
+            const ImageData& imageData,
+            const VulkanTextureCreateInfo& createInfo
         );
 
         ~VulkanTexture() = default;
@@ -37,5 +39,6 @@ namespace deoxy::graphics::vulkan {
         VulkanSampler m_sampler;
 
         uint32_t calculateMipLevels(uint32_t width, uint32_t height);
+        VkImageUsageFlags getTextureUsage(bool generateMipmaps);
     };
 }

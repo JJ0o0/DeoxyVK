@@ -6,7 +6,15 @@ namespace deoxy::graphics::vulkan {
     class VulkanSampler {
         public:
             VulkanSampler() = default;
-            explicit VulkanSampler(VkDevice device, uint32_t mipLevels);
+
+            explicit VulkanSampler(
+                VkDevice device,
+                uint32_t mipLevels,
+                VkFilter filter, VkSamplerMipmapMode mipmapFilter,
+                VkSamplerAddressMode wrapMode,
+                bool anisotropyEnabled, float maxAnisotropy
+            );
+
             ~VulkanSampler();
 
             VulkanSampler(const VulkanSampler&) = delete;

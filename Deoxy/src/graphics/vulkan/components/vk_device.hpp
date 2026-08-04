@@ -16,6 +16,8 @@ namespace deoxy::graphics::vulkan {
             VkDevice GetLogical() const { return m_device; }
             VkQueue GetQueue() const { return m_queue; }
             uint32_t GetGraphicsQueueFamily() const { return m_graphicsQueueFamily; }
+            bool SupportsSamplerAnisotropy() const { return m_supportsSamplerAnisotropy; }
+            float GetMaxSamplerAnisotropy() const { return m_maxSamplerAnisotropy; }
         private:
             void destroy();
 
@@ -31,5 +33,8 @@ namespace deoxy::graphics::vulkan {
 
             VkQueue m_queue = VK_NULL_HANDLE;
             uint32_t m_graphicsQueueFamily = std::numeric_limits<uint32_t>::max();
+
+            bool m_supportsSamplerAnisotropy = false;
+            float m_maxSamplerAnisotropy = 1.0f;
     };
 }

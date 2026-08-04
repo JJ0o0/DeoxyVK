@@ -303,7 +303,9 @@ namespace deoxy::graphics {
 
         vulkan::PushConstants pushConstants {
             .ModelMatrix = modelMatrix,
-            .MaterialTint = materialCI.Tint
+            .MaterialTint = materialCI.Tint,
+            .MaterialUVScale = materialCI.UVScale,
+            .MaterialUVOffset = materialCI.UvOffset
         };
 
         vkCmdPushConstants(
@@ -336,8 +338,8 @@ namespace deoxy::graphics {
         m_resourceManager.DestroyMesh(handle);
     }
 
-    TextureHandle VulkanContext::CreateTexture(const ImageData& data) {
-        return m_resourceManager.CreateTexture(data);
+    TextureHandle VulkanContext::CreateTexture(const ImageData& data, const TextureCreateInfo& createInfo) {
+        return m_resourceManager.CreateTexture(data, createInfo);
     }
 
     void VulkanContext::DestroyTexture(TextureHandle handle) {

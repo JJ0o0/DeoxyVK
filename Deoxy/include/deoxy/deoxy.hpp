@@ -5,13 +5,21 @@
 
 #include <deoxy/input/input.hpp>
 #include <deoxy/input/key.hpp>
+#include <deoxy/input/mouse_buttons.hpp>
 
 #include <deoxy/graphics/renderer.hpp>
 #include <deoxy/graphics/color.hpp>
 #include <deoxy/graphics/mesh_data.hpp>
 #include <deoxy/graphics/mesh_generator.hpp>
 #include <deoxy/graphics/graphical_handles.hpp>
+#include <deoxy/graphics/image_data.hpp>
+#include <deoxy/graphics/image_loader.hpp>
+#include <deoxy/graphics/material.hpp>
+#include <deoxy/graphics/texture.hpp>
+#include <deoxy/graphics/vertex.hpp>
 
+#include <deoxy/platform/window.hpp>
+#include <deoxy/platform/message_box.hpp>
 #include <deoxy/platform/logger.hpp>
 
 using namespace deoxy;

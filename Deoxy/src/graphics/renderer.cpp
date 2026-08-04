@@ -49,9 +49,13 @@ namespace deoxy::graphics {
         m_impl->Context.DrawMesh(mesh, material, modelMatrix);
     }
 
-    TextureHandle Renderer::CreateTexture(const std::filesystem::path& path) {
-        const ImageData data = ImageLoader::Load(path);
-        return m_impl->Context.CreateTexture(data);
+    TextureHandle Renderer::CreateTexture(const ImageData& data, const TextureCreateInfo& createInfo) {
+        return m_impl->Context.CreateTexture(data, createInfo);
+    }
+
+    TextureHandle Renderer::CreateTexture(const std::filesystem::path& path, const TextureCreateInfo& createInfo) {
+        ImageData data = ImageLoader::Load(path);
+        return CreateTexture(data, createInfo);
     }
 
     void Renderer::DestroyTexture(TextureHandle handle) {

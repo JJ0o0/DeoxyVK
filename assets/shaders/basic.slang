@@ -19,6 +19,8 @@ struct CameraUniformData {
 struct PushConstantsData {
     float4x4 ModelMatrix;
     float4 MaterialTint;
+    float2 MaterialUVScale;
+    float2 MaterialUVOffset;
 };
 
 [[vk::binding(0, 0)]] ConstantBuffer<CameraUniformData> Camera;
@@ -42,6 +44,7 @@ VertexOutput vertexMain(VertexInput input) {
 
 [shader("fragment")]
 float4 fragmentMain(VertexOutput input) : SV_Target {
-    float4 textureColor = AlbedoTexture.Sample(input.UV);
+    float2 scaledUV = input.UV * PushConstants.MaterialUVScale + PushConstants.MaterialUVOffset;
+    float4 textureColor = AlbedoTexture.Sample(scaledUV);
     return textureColor * input.Color * PushConstants.MaterialTint;
 }

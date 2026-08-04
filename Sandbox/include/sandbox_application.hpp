@@ -20,6 +20,10 @@ class SandboxApplication : public Application {
         Camera m_camera;
 
         MeshHandle m_mesh;
+
         TextureHandle m_checker;
         MaterialHandle m_checkerMaterial;
+
+        TextureHandle m_minecraftDirt;
+        MaterialHandle m_minecraftDirtMaterial;
 };

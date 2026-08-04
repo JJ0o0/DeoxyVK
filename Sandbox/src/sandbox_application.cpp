@@ -20,9 +20,34 @@ void SandboxApplication::OnStart() {
     // Criando o objeto do cubo
     MeshData cube = MeshGenerator::CreateCube(1.0f);
     m_mesh = renderer.CreateMesh(cube);
-    m_checker = renderer.CreateTexture("assets/textures/checker.png");
+
+    TextureCreateInfo checkerCI {
+        .ColorSpace = TextureColorSpace::SRGB,
+        .Filter = TextureFilter::Linear,
+        .MipmapFilter = TextureMipmapFilter::Linear,
+        .WrapMode = TextureWrapMode::Repeat,
+    };
+
+    m_checker = renderer.CreateTexture("assets/textures/checker.png", checkerCI);
+
     m_checkerMaterial = renderer.CreateMaterial(MaterialCreateInfo {
-        .Albedo = m_checker
+        .Albedo = m_checker,
+        .UVScale = Vec2{2.0f}
+    });
+
+    TextureCreateInfo minecraftDirtCI {
+        .ColorSpace = TextureColorSpace::SRGB,
+        .Filter = TextureFilter::Nearest,
+        .MipmapFilter = TextureMipmapFilter::Nearest,
+        .WrapMode = TextureWrapMode::Repeat,
+        .GenerateMipmaps = false,
+        .EnableAnisotropy = false
+    };
+
+    m_minecraftDirt = renderer.CreateTexture("assets/textures/minecraft_dirt.png", minecraftDirtCI);
+
+    m_minecraftDirtMaterial = renderer.CreateMaterial(MaterialCreateInfo {
+        .Albedo = m_minecraftDirt,
     });
 
     // Setando configurações da janela
@@ -65,6 +90,17 @@ void SandboxApplication::OnRender() {
     // Aplicando matriz e desenhando
     auto& renderer = GetRenderer();
     renderer.DrawMesh(m_mesh, m_checkerMaterial, model);
+
+    // Movendo, rotacionando e escalando o objeto
+    Mat4 model2{1.0f};
+    model2 = Translate(model2, Vec3{0.5f, 1.0f, -0.05f});
+    model2 = RotateX(model2, ToRadians(m_rotation * 0.4f));
+    model2 = RotateY(model2, ToRadians(m_rotation * 0.45f));
+    model2 = RotateZ(model2, ToRadians(m_rotation * 0.5f));
+    model2 = Scale(model2, Vec3{0.4f});
+
+    // Aplicando matriz e desenhando
+    renderer.DrawMesh(m_mesh, m_minecraftDirtMaterial, model2);
 }
 
 void SandboxApplication::OnQuit() {
