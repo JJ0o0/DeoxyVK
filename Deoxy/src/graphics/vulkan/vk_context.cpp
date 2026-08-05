@@ -83,7 +83,7 @@ namespace deoxy::graphics {
         m_activeImageIndex = imageIndex;
         m_swapchainSuboptimal = acquireResult == VK_SUBOPTIMAL_KHR;
 
-        frame.GetCameraBuffer().Upload(&m_cameraData, sizeof(m_cameraData));
+        frame.GetCameraBuffer().Upload(&m_frameData, sizeof(m_frameData));
 
         // Não reseta a cerca antes do acquire
         frame.ResetForSubmit();
@@ -358,8 +358,16 @@ namespace deoxy::graphics {
     }
 
     void VulkanContext::SetCamera(const math::Mat4& view, const math::Mat4& projection) {
-        m_cameraData.View = view;
-        m_cameraData.Projection = projection;
+        m_frameData.View = view;
+        m_frameData.Projection = projection;
+    }
+
+    void VulkanContext::SetDirectionalLight(const DirectionalLight& light) {
+        m_frameData.DirectionalLight = {
+            .Direction = light.Direction,
+            .Intensity = light.Intensity,
+            .LightColor = light.LightColor
+        };
     }
 
     void VulkanContext::updateCameraDescriptorSets() {
@@ -369,7 +377,7 @@ namespace deoxy::graphics {
             VkDescriptorBufferInfo bufferInfo {
                 .buffer = frame.GetCameraBuffer().GetHandle(),
                 .offset = 0,
-                .range = sizeof(vulkan::CameraUniformData)
+                .range = sizeof(vulkan::FrameUniformData)
             };
 
             VkWriteDescriptorSet write {

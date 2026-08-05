@@ -24,5 +24,7 @@ namespace deoxy::graphics::vulkan {
 
     void VulkanSurface::destroy() {
         if (m_surface != VK_NULL_HANDLE) vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+        m_surface = VK_NULL_HANDLE;
+        m_instance = VK_NULL_HANDLE;
     }
 }

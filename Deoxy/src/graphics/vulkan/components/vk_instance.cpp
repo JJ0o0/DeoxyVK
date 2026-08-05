@@ -56,6 +56,9 @@ namespace deoxy::graphics::vulkan {
     void VulkanInstance::destroy() {
         if (m_debugMessenger != VK_NULL_HANDLE) vkDestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
         if (m_instance != VK_NULL_HANDLE) vkDestroyInstance(m_instance, nullptr);
+
+        m_debugMessenger = VK_NULL_HANDLE;
+        m_instance = VK_NULL_HANDLE;
     }
 
     void VulkanInstance::createInstance() {

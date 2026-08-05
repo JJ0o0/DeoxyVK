@@ -17,6 +17,12 @@ void SandboxApplication::OnStart() {
     const auto clearColor = ParseHexColor32("#1B1B1E").value();
     renderer.SetClearColor(clearColor);
 
+    // Configurando o sol
+    m_sun = DirectionalLight {
+        .Intensity = 1.0f,
+        .LightColor = Color{1.0f, 0.8f, 0.6f},
+    };
+
     // Criando o objeto do cubo
     MeshData cube = MeshGenerator::CreateCube(1.0f);
     m_mesh = renderer.CreateMesh(cube);
@@ -61,13 +67,19 @@ void SandboxApplication::OnUpdate(float deltaTime) {
     auto& renderer = GetRenderer();
     const auto& input = GetInput();
 
-    // Calculando a rotação do objeto
-    const float rotation_speed = 20.0f;
-    m_rotation += rotation_speed * deltaTime;
-
     // Setando a camera
     if (m_mouseLocked) m_camera.Update(input, deltaTime);
     renderer.SetCamera(m_camera.GetView(), m_camera.GetProjection(window.GetAspectRatio()));
+
+    // Atualizando a luz do sol
+    const float lightRotationSpeed = 35.0f;
+    m_lightRotation += lightRotationSpeed * deltaTime;
+
+    const float lightAngle = ToRadians(m_lightRotation);
+    const Vec3 lightDirection { Cos(lightAngle), -0.65f, Sin(lightAngle) };
+
+    m_sun.Direction = lightDirection;
+    renderer.SetDirectionalLight(m_sun);
 
     if (input.WasPressed(Key::Escape)) {
         m_mouseLocked = !m_mouseLocked;
@@ -82,9 +94,6 @@ void SandboxApplication::OnRender() {
     // Movendo, rotacionando e escalando o objeto
     Mat4 model{1.0f};
     model = Translate(model, Vec3{0.0f});
-    model = RotateX(model, ToRadians(m_rotation * 0.8f));
-    model = RotateY(model, ToRadians(m_rotation * 0.9f));
-    model = RotateZ(model, ToRadians(m_rotation));
     model = Scale(model, Vec3{0.5f});
 
     // Aplicando matriz e desenhando
@@ -94,9 +103,6 @@ void SandboxApplication::OnRender() {
     // Movendo, rotacionando e escalando o objeto
     Mat4 model2{1.0f};
     model2 = Translate(model2, Vec3{0.5f, 1.0f, -0.05f});
-    model2 = RotateX(model2, ToRadians(m_rotation * 0.4f));
-    model2 = RotateY(model2, ToRadians(m_rotation * 0.45f));
-    model2 = RotateZ(model2, ToRadians(m_rotation * 0.5f));
     model2 = Scale(model2, Vec3{0.4f});
 
     // Aplicando matriz e desenhando

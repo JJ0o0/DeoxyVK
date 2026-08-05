@@ -34,7 +34,7 @@ namespace deoxy::graphics::vulkan {
             // Criando buffer da camera
             m_cameraBuffer = std::make_unique<VulkanBuffer>(
                 allocator,
-                sizeof(CameraUniformData),
+                sizeof(FrameUniformData),
                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 VMA_MEMORY_USAGE_AUTO,
                 VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
@@ -68,6 +68,8 @@ namespace deoxy::graphics::vulkan {
             m_commandBuffer = VK_NULL_HANDLE;
         }
 
+        m_inFlightFence = VK_NULL_HANDLE;
+        m_imageAvailableSemaphore = VK_NULL_HANDLE;
         m_cameraDescriptorSet = VK_NULL_HANDLE;
     }
 }

@@ -14,10 +14,10 @@ class SandboxApplication : public Application {
     private:
         bool m_mouseLocked = true;
 
-        Vec3 m_position{0.0f};
-        float m_rotation = 0.0f;
+        float m_lightRotation = 0.0f;
 
         Camera m_camera;
+        DirectionalLight m_sun;
 
         MeshHandle m_mesh;
 

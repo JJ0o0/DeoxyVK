@@ -9,5 +9,6 @@ namespace deoxy::graphics {
         math::Vec3 Position{0.0f};
         Color Tint{1.0f};
         math::Vec2 UV{0.0f};
+        math::Vec3 Normal{0.0f};
     };
 }

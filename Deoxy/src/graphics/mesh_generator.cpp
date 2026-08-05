@@ -19,132 +19,156 @@ namespace deoxy::graphics {
             Vertex{
                 .Position = {-half, -half,  half},
                 .Tint = Color{1.0f},
-                .UV = {0.0f, 0.0f}
+                .UV = {0.0f, 0.0f},
+                .Normal = {0.0f, 0.0f, 1.0f}
             },
             Vertex{
                 .Position = { half, -half,  half},
                 .Tint = Color{1.0f},
-                .UV = {1.0f, 0.0f}
+                .UV = {1.0f, 0.0f},
+                .Normal = {0.0f, 0.0f, 1.0f}
             },
             Vertex{
                 .Position = { half,  half,  half},
                 .Tint = Color{1.0f},
-                .UV = {1.0f, 1.0f}
+                .UV = {1.0f, 1.0f},
+                .Normal = {0.0f, 0.0f, 1.0f}
             },
             Vertex{
                 .Position = {-half,  half,  half},
                 .Tint = Color{1.0f},
-                .UV = {0.0f, 1.0f}
+                .UV = {0.0f, 1.0f},
+                .Normal = {0.0f, 0.0f, 1.0f}
             },
 
             // -Z
             Vertex{
                 .Position = { half, -half, -half},
                 .Tint = Color{1.0f},
-                .UV = {0.0f, 0.0f}
+                .UV = {0.0f, 0.0f},
+                .Normal = {0.0f, 0.0f, -1.0f}
             },
             Vertex{
                 .Position = {-half, -half, -half},
                 .Tint = Color{1.0f},
-                .UV = {1.0f, 0.0f}
+                .UV = {1.0f, 0.0f},
+                .Normal = {0.0f, 0.0f, -1.0f}
             },
             Vertex{
                 .Position = {-half,  half, -half},
                 .Tint = Color{1.0f},
-                .UV = {1.0f, 1.0f}
+                .UV = {1.0f, 1.0f},
+                .Normal = {0.0f, 0.0f, -1.0f}
             },
             Vertex{
                 .Position = { half,  half, -half},
                 .Tint = Color{1.0f},
-                .UV = {0.0f, 1.0f}
+                .UV = {0.0f, 1.0f},
+                .Normal = {0.0f, 0.0f, -1.0f}
             },
 
             // +X
             Vertex{
                 .Position = {half, -half,  half},
                 .Tint = Color{1.0f},
-                .UV = {0.0f, 0.0f}
+                .UV = {0.0f, 0.0f},
+                .Normal = {1.0f, 0.0f, 0.0f}
             },
             Vertex{
                 .Position = {half, -half, -half},
                 .Tint = Color{1.0f},
-                .UV = {1.0f, 0.0f}
+                .UV = {1.0f, 0.0f},
+                .Normal = {1.0f, 0.0f, 0.0f}
             },
             Vertex{
                 .Position = {half,  half, -half},
                 .Tint = Color{1.0f},
-                .UV = {1.0f, 1.0f}
+                .UV = {1.0f, 1.0f},
+                .Normal = {1.0f, 0.0f, 0.0f}
             },
             Vertex{
                 .Position = {half,  half,  half},
                 .Tint = Color{1.0f},
-                .UV = {0.0f, 1.0f}
+                .UV = {0.0f, 1.0f},
+                .Normal = {1.0f, 0.0f, 0.0f}
             },
 
             // -X
             Vertex{
                 .Position = {-half, -half, -half},
                 .Tint = Color{1.0f},
-                .UV = {0.0f, 0.0f}
+                .UV = {0.0f, 0.0f},
+                .Normal = {-1.0f, 0.0f, 0.0f}
             },
             Vertex{
                 .Position = {-half, -half,  half},
                 .Tint = Color{1.0f},
-                .UV = {1.0f, 0.0f}
+                .UV = {1.0f, 0.0f},
+                .Normal = {-1.0f, 0.0f, 0.0f}
             },
             Vertex{
                 .Position = {-half,  half,  half},
                 .Tint = Color{1.0f},
-                .UV = {1.0f, 1.0f}
+                .UV = {1.0f, 1.0f},
+                .Normal = {-1.0f, 0.0f, 0.0f}
             },
             Vertex{
                 .Position = {-half,  half, -half},
                 .Tint = Color{1.0f},
-                .UV = {0.0f, 1.0f}
+                .UV = {0.0f, 1.0f},
+                .Normal = {-1.0f, 0.0f, 0.0f}
             },
 
             // +Y
             Vertex{
                 .Position = {-half, half,  half},
                 .Tint = Color{1.0f},
-                .UV = {0.0f, 0.0f}
+                .UV = {0.0f, 0.0f},
+                .Normal = {0.0f, 1.0f, 0.0f}
             },
             Vertex{
                 .Position = { half, half,  half},
                 .Tint = Color{1.0f},
-                .UV = {1.0f, 0.0f}
+                .UV = {1.0f, 0.0f},
+                .Normal = {0.0f, 1.0f, 0.0f}
             },
             Vertex{
                 .Position = { half, half, -half},
                 .Tint = Color{1.0f},
-                .UV = {1.0f, 1.0f}
+                .UV = {1.0f, 1.0f},
+                .Normal = {0.0f, 1.0f, 0.0f}
             },
             Vertex{
                 .Position = {-half, half, -half},
                 .Tint = Color{1.0f},
-                .UV = {0.0f, 1.0f}
+                .UV = {0.0f, 1.0f},
+                .Normal = {0.0f, 1.0f, 0.0f}
             },
 
             // -Y
             Vertex{
                 .Position = {-half, -half, -half},
                 .Tint = Color{1.0f},
-                .UV = {0.0f, 0.0f}
+                .UV = {0.0f, 0.0f},
+                .Normal = {0.0f, -1.0f, 0.0f}
             },
             Vertex{
                 .Position = { half, -half, -half},
                 .Tint = Color{1.0f},
-                .UV = {1.0f, 0.0f}
+                .UV = {1.0f, 0.0f},
+                .Normal = {0.0f, -1.0f, 0.0f}
             },
             Vertex{
                 .Position = { half, -half,  half},
                 .Tint = Color{1.0f},
-                .UV = {1.0f, 1.0f}
+                .UV = {1.0f, 1.0f},
+                .Normal = {0.0f, -1.0f, 0.0f}
             },
             Vertex{
                 .Position = {-half, -half,  half},
                 .Tint = Color{1.0f},
-                .UV = {0.0f, 1.0f}
+                .UV = {0.0f, 1.0f},
+                .Normal = {0.0f, -1.0f, 0.0f}
             }
         };
 

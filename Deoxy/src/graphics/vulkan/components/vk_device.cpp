@@ -20,6 +20,7 @@ namespace deoxy::graphics::vulkan {
 
     void VulkanDevice::destroy() {
         if (m_device != VK_NULL_HANDLE) vkDestroyDevice(m_device, nullptr);
+        m_device = VK_NULL_HANDLE;
     }
 
     void VulkanDevice::selectPhysicalDevice() {

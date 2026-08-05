@@ -17,6 +17,7 @@
 
 #include "managers/vk_resource_manager.hpp"
 
+#include <deoxy/graphics/lighting/directional_light.hpp>
 #include <deoxy/graphics/graphical_handles.hpp>
 #include <deoxy/graphics/material.hpp>
 #include <deoxy/graphics/color.hpp>
@@ -59,6 +60,7 @@ namespace deoxy::graphics {
             void DestroyMaterial(MaterialHandle handle);
 
             void SetCamera(const math::Mat4& view, const math::Mat4& projection);
+            void SetDirectionalLight(const DirectionalLight& light);
         private:
             static constexpr uint32_t FRAMES_IN_FLIGHT = 2;
             static constexpr uint32_t MAX_TEXTURES = 256;
@@ -91,7 +93,7 @@ namespace deoxy::graphics {
             uint32_t m_currentFrame = 0;
 
             vulkan::VulkanResourceManager m_resourceManager;
-            vulkan::CameraUniformData m_cameraData{};
+            vulkan::FrameUniformData m_frameData{};
 
             VkCommandBuffer getActiveCommandBuffer() const;
     };

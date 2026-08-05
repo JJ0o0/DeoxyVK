@@ -73,4 +73,8 @@ namespace deoxy::graphics {
     void Renderer::SetCamera(const math::Mat4& view, const math::Mat4& projection) {
         m_impl->Context.SetCamera(view, projection);
     }
+
+    void Renderer::SetDirectionalLight(const DirectionalLight& light) {
+        m_impl->Context.SetDirectionalLight(light);
+    }
 }

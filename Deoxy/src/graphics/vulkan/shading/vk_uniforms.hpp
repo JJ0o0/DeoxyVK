@@ -1,13 +1,22 @@
 #pragma once
 
+#include <deoxy/graphics/color.hpp>
+#include <deoxy/math/vec3.hpp>
 #include <deoxy/math/mat4.hpp>
 #include <volk.h>
 #include <array>
 
 namespace deoxy::graphics::vulkan {
-    struct CameraUniformData {
+    struct DirectionalLightUniformData {
+        math::Vec3 Direction{0.0f, -1.0f, 0.0f};
+        float Intensity = 1.0f;
+        Color LightColor{1.0f};
+    };
+
+    struct FrameUniformData {
         math::Mat4 View{1.0f};
         math::Mat4 Projection{1.0f};
+        DirectionalLightUniformData DirectionalLight;
     };
 
     inline std::array<VkDescriptorSetLayoutBinding, 1> CameraBindings {
@@ -15,7 +24,7 @@ namespace deoxy::graphics::vulkan {
             .binding = 0,
             .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
             .descriptorCount = 1,
-            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
             .pImmutableSamplers = nullptr
         }
     };
