@@ -179,7 +179,7 @@ namespace deoxy::graphics::vulkan {
         ++slot.Generation;
     }
 
-    PointLightHandle VulkanResourceManager::CreatePointLight(const PointLight& light) {
+    std::optional<PointLightHandle> VulkanResourceManager::CreatePointLight(const PointLight& light) {
         // Primeiro procura um espaço liberado
         for (uint32_t i = 0; i < m_pointLights.size(); ++i) {
             PointLightSlot& slot = m_pointLights[i];
@@ -193,6 +193,8 @@ namespace deoxy::graphics::vulkan {
                 };
             }
         }
+
+        if (m_pointLights.size() >= MAX_POINT_LIGHTS) return std::nullopt;
 
         // Se não encontrar, cria um novo
         CheckBool(m_pointLights.size() < static_cast<size_t>(

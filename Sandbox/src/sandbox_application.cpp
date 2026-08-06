@@ -1,5 +1,7 @@
 #include <sandbox_application.hpp>
 
+
+
 SandboxApplication::SandboxApplication()
     : Application({
         .Title = "DeoxyVK Sandbox",
@@ -40,25 +42,31 @@ void SandboxApplication::OnStart() {
         .UVScale = Vec2{2.0f}
     });
 
-    TextureCreateInfo minecraftDirtCI {
-        .ColorSpace = TextureColorSpace::SRGB,
-        .Filter = TextureFilter::Nearest,
-        .MipmapFilter = TextureMipmapFilter::Nearest,
-        .WrapMode = TextureWrapMode::Repeat,
-        .GenerateMipmaps = false,
-        .EnableAnisotropy = false
-    };
-
-    m_minecraftDirt = renderer.CreateTexture("assets/textures/minecraft_dirt.png", minecraftDirtCI);
-
-    m_minecraftDirtMaterial = renderer.CreateMaterial(MaterialCreateInfo {
-        .Albedo = m_minecraftDirt,
-    });
-
-    m_pointLight = renderer.CreatePointLight({
-        .Position = Vec3{0.0f, 1.5f, 1.0f},
+    createPointLight(renderer, {
+        .Position = Vec3{0.0f, 1.5f, 0.0f},
         .Range = 5.0f,
         .LightColor = Color{1.0f, 0.2f, 0.05f},
+        .Intensity = 3.0f
+    });
+
+    createPointLight(renderer, {
+        .Position = Vec3{0.0f, -1.5f, 0.0f},
+        .Range = 5.0f,
+        .LightColor = Color{0.2f, 1.0f, 0.05f},
+        .Intensity = 3.0f
+    });
+
+    createPointLight(renderer, {
+        .Position = Vec3{1.5f, 0.0f, 0.0f},
+        .Range = 5.0f,
+        .LightColor = Color{0.2f, 0.05f, 1.0f},
+        .Intensity = 3.0f
+    });
+
+    createPointLight(renderer, {
+        .Position = Vec3{0.0f, 0.0f, 1.5f},
+        .Range = 5.0f,
+        .LightColor = Color{1.0f, 0.05f, 1.0f},
         .Intensity = 3.0f
     });
 
@@ -95,24 +103,27 @@ void SandboxApplication::OnRender() {
     // Aplicando matriz e desenhando
     auto& renderer = GetRenderer();
     renderer.DrawMesh(m_mesh, m_checkerMaterial, model);
-
-    // Movendo, rotacionando e escalando o objeto
-    Mat4 model2{1.0f};
-    model2 = Translate(model2, Vec3{0.5f, 1.0f, -0.05f});
-    model2 = Scale(model2, Vec3{0.4f});
-
-    // Aplicando matriz e desenhando
-    renderer.DrawMesh(m_mesh, m_minecraftDirtMaterial, model2);
 }
 
 void SandboxApplication::OnQuit() {
     // Destruindo tudo
     auto& renderer = GetRenderer();
+    for (auto& light : m_pointLights) renderer.DestroyPointLight(light);
+
     renderer.DestroyMaterial(m_checkerMaterial);
-    renderer.DestroyMaterial(m_minecraftDirtMaterial);
     renderer.DestroyTexture(m_checker);
-    renderer.DestroyTexture(m_minecraftDirt);
     renderer.DestroyMesh(m_mesh);
 
     Logger::Info("Sandbox stopped");
+}
+
+void SandboxApplication::createPointLight(Renderer& renderer, const PointLight& light) {
+    const auto handle = renderer.CreatePointLight(light);
+
+    if (!handle) {
+        Logger::Warn("Point Light couldn't be created: limit exceeded.");
+        return;
+    }
+
+    m_pointLights.push_back(*handle);
 }

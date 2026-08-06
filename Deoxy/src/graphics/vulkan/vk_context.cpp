@@ -358,7 +358,7 @@ namespace deoxy::graphics {
         m_resourceManager.DestroyMaterial(handle);
     }
 
-    PointLightHandle VulkanContext::CreatePointLight(const PointLight& light) {
+    std::optional<PointLightHandle> VulkanContext::CreatePointLight(const PointLight& light) {
         return m_resourceManager.CreatePointLight(light);
     }
 

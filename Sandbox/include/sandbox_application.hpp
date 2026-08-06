@@ -23,8 +23,6 @@ class SandboxApplication : public Application {
         TextureHandle m_checker;
         MaterialHandle m_checkerMaterial;
 
-        TextureHandle m_minecraftDirt;
-        MaterialHandle m_minecraftDirtMaterial;
-
-        PointLightHandle m_pointLight;
+        std::vector<PointLightHandle> m_pointLights;
+        void createPointLight(Renderer& renderer, const PointLight& light);
 };

@@ -44,7 +44,7 @@ namespace deoxy::graphics {
             MaterialHandle CreateMaterial(const MaterialCreateInfo& createInfo);
             void DestroyMaterial(MaterialHandle handle);
 
-            PointLightHandle CreatePointLight(const PointLight& light);
+            std::optional<PointLightHandle> CreatePointLight(const PointLight& light);
             void UpdatePointLight(PointLightHandle handle, const PointLight& light);
             void DestroyPointLight(PointLightHandle handle);
             PointLight GetPointLight(PointLightHandle handle);

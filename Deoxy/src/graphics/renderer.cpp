@@ -70,7 +70,7 @@ namespace deoxy::graphics {
         m_impl->Context.DestroyMaterial(handle);
     }
 
-    PointLightHandle Renderer::CreatePointLight(const PointLight& light) {
+    std::optional<PointLightHandle> Renderer::CreatePointLight(const PointLight& light) {
         return m_impl->Context.CreatePointLight(light);
     }
 
