@@ -17,7 +17,6 @@ class SandboxApplication : public Application {
         float m_lightRotation = 0.0f;
 
         Camera m_camera;
-        DirectionalLight m_sun;
 
         MeshHandle m_mesh;
 
@@ -26,4 +25,6 @@ class SandboxApplication : public Application {
 
         TextureHandle m_minecraftDirt;
         MaterialHandle m_minecraftDirtMaterial;
+
+        PointLightHandle m_pointLight;
 };

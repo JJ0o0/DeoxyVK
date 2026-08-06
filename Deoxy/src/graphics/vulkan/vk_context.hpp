@@ -18,6 +18,7 @@
 #include "managers/vk_resource_manager.hpp"
 
 #include <deoxy/graphics/lighting/directional_light.hpp>
+#include <deoxy/graphics/lighting/ambient_light.hpp>
 #include <deoxy/graphics/graphical_handles.hpp>
 #include <deoxy/graphics/material.hpp>
 #include <deoxy/graphics/color.hpp>
@@ -59,8 +60,14 @@ namespace deoxy::graphics {
             MaterialHandle CreateMaterial(const MaterialCreateInfo& data);
             void DestroyMaterial(MaterialHandle handle);
 
+            PointLightHandle CreatePointLight(const PointLight& light);
+            void UpdatePointLight(PointLightHandle handle, const PointLight& light);
+            void DestroyPointLight(PointLightHandle handle);
+            PointLight GetPointLight(PointLightHandle handle);
+
             void SetCamera(const math::Mat4& view, const math::Mat4& projection);
             void SetDirectionalLight(const DirectionalLight& light);
+            void SetAmbientLight(const AmbientLight& light);
         private:
             static constexpr uint32_t FRAMES_IN_FLIGHT = 2;
             static constexpr uint32_t MAX_TEXTURES = 256;

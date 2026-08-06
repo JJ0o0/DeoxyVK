@@ -7,9 +7,11 @@ namespace deoxy::graphics {
         struct MeshHandleTag{};
         struct TextureHandleTag{};
         struct MaterialHandleTag{};
+        struct PointLightTag{};
     }
 
     using MeshHandle = core::ResourceHandle<detail::MeshHandleTag>;
     using TextureHandle = core::ResourceHandle<detail::TextureHandleTag>;
     using MaterialHandle = core::ResourceHandle<detail::MaterialHandleTag>;
+    using PointLightHandle = core::ResourceHandle<detail::PointLightTag>;
 }

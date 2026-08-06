@@ -70,11 +70,31 @@ namespace deoxy::graphics {
         m_impl->Context.DestroyMaterial(handle);
     }
 
+    PointLightHandle Renderer::CreatePointLight(const PointLight& light) {
+        return m_impl->Context.CreatePointLight(light);
+    }
+
+    void Renderer::UpdatePointLight(PointLightHandle handle, const PointLight& light) {
+        m_impl->Context.UpdatePointLight(handle, light);
+    }
+
+    void Renderer::DestroyPointLight(PointLightHandle handle) {
+        m_impl->Context.DestroyPointLight(handle);
+    }
+
+    PointLight Renderer::GetPointLight(PointLightHandle handle) {
+        return m_impl->Context.GetPointLight(handle);
+    }
+
     void Renderer::SetCamera(const math::Mat4& view, const math::Mat4& projection) {
         m_impl->Context.SetCamera(view, projection);
     }
 
     void Renderer::SetDirectionalLight(const DirectionalLight& light) {
         m_impl->Context.SetDirectionalLight(light);
+    }
+
+    void Renderer::SetAmbientLight(const AmbientLight& light) {
+        m_impl->Context.SetAmbientLight(light);
     }
 }

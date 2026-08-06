@@ -5,6 +5,7 @@
 #include "../components/vk_texture.hpp"
 #include "../graphical/vk_mesh.hpp"
 
+#include <deoxy/graphics/lighting/point_light.hpp>
 #include <deoxy/graphics/graphical_handles.hpp>
 #include <deoxy/graphics/image_data.hpp>
 #include <deoxy/graphics/material.hpp>
@@ -23,6 +24,7 @@ namespace deoxy::graphics::vulkan {
     class VulkanCommandPool;
     class VulkanDescriptorSetLayout;
     class VulkanDescriptorPool;
+    struct FrameUniformData;
     class VulkanResourceManager {
         public:
             VulkanResourceManager(
@@ -42,9 +44,16 @@ namespace deoxy::graphics::vulkan {
             MaterialHandle CreateMaterial(const MaterialCreateInfo& data);
             void DestroyMaterial(MaterialHandle handle);
 
+            PointLightHandle CreatePointLight(const PointLight& light);
+            void WritePointLights(FrameUniformData& data) const;
+            void UpdatePointLight(PointLightHandle handle, const PointLight& light);
+            void DestroyPointLight(PointLightHandle handle);
+
             VulkanMesh& GetMesh(MeshHandle handle);
             const MaterialCreateInfo& GetMaterial(MaterialHandle handle);
             VkDescriptorSet GetTextureDescriptorSet(TextureHandle handle);
+
+            const PointLight& GetPointLight(PointLightHandle handle);
         private:
             VulkanDevice& m_device;
             VulkanAllocator& m_allocator;
@@ -60,15 +69,18 @@ namespace deoxy::graphics::vulkan {
 
             using MeshSlot = ResourceSlot<VulkanMesh>;
             using MaterialSlot = ResourceSlot<MaterialCreateInfo>;
+            using PointLightSlot = ResourceSlot<PointLight>;
 
             MeshSlot& getMeshSlot(MeshHandle handle);
             TextureSlot& getTextureSlot(TextureHandle handle);
             MaterialSlot& getMaterialSlot(MaterialHandle handle);
+            PointLightSlot& getPointLightSlot(PointLightHandle handle);
 
             TextureHandle m_defaultTexture;
             std::vector<MeshSlot> m_meshes;
             std::vector<TextureSlot> m_textures;
             std::vector<MaterialSlot> m_materials;
+            std::vector<PointLightSlot> m_pointLights;
 
             void initializeTextureSlot(const VulkanTextureCreateInfo& createInfo, TextureSlot& slot, const ImageData& data);
             void createDefaultWhiteTexture();

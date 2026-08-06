@@ -6,6 +6,7 @@
 #include "../components/vk_allocator.hpp"
 #include "../components/vk_device.hpp"
 #include "../components/vk_helper.hpp"
+#include "../shading/vk_uniforms.hpp"
 
 #include <deoxy/math/scalar.hpp>
 
@@ -178,6 +179,73 @@ namespace deoxy::graphics::vulkan {
         ++slot.Generation;
     }
 
+    PointLightHandle VulkanResourceManager::CreatePointLight(const PointLight& light) {
+        // Primeiro procura um espaço liberado
+        for (uint32_t i = 0; i < m_pointLights.size(); ++i) {
+            PointLightSlot& slot = m_pointLights[i];
+
+            if (!slot.Resource.has_value()) {
+                slot.Resource.emplace(light);
+
+                return PointLightHandle {
+                    .Index = i,
+                    .Generation = slot.Generation
+                };
+            }
+        }
+
+        // Se não encontrar, cria um novo
+        CheckBool(m_pointLights.size() < static_cast<size_t>(
+            PointLightHandle::InvalidIndex
+        ), "Point Light storage has reached its maximum capacity");
+
+        const auto index = static_cast<uint32_t>(m_pointLights.size());
+        m_pointLights.emplace_back();
+
+        PointLightSlot& slot = m_pointLights.back();
+        slot.Resource.emplace(light);
+
+        return PointLightHandle {
+            .Index = index,
+            .Generation = slot.Generation
+        };
+    }
+
+    void VulkanResourceManager::WritePointLights(FrameUniformData& data) const {
+        data.PointLightCount = 0;
+
+        for (const PointLightSlot& slot : m_pointLights) {
+            if (!slot.Resource.has_value()) continue;
+
+            CheckBool(data.PointLightCount < MAX_POINT_LIGHTS, "Maximum active point light count reached");
+
+            const PointLight& src = slot.Resource.value();
+            PointLightUniformData& dest = data.PointLights[data.PointLightCount];
+
+            dest.Position = src.Position;
+            dest.Range = src.Range;
+            dest.LightColor = {
+                src.LightColor.R,
+                src.LightColor.G,
+                src.LightColor.B
+            };
+            dest.Intensity = src.Intensity;
+
+            ++data.PointLightCount;
+        }
+    }
+
+    void VulkanResourceManager::UpdatePointLight(PointLightHandle handle, const PointLight& light) {
+        PointLightSlot& slot = getPointLightSlot(handle);
+        slot.Resource = light;
+    }
+
+    void VulkanResourceManager::DestroyPointLight(PointLightHandle handle) {
+        PointLightSlot& slot = getPointLightSlot(handle);
+        slot.Resource.reset();
+        ++slot.Generation;
+    }
+
     VulkanMesh& VulkanResourceManager::GetMesh(MeshHandle handle) {
         MeshSlot& slot = getMeshSlot(handle);
         return slot.Resource.value();
@@ -191,6 +259,11 @@ namespace deoxy::graphics::vulkan {
     VkDescriptorSet VulkanResourceManager::GetTextureDescriptorSet(TextureHandle handle) {
         TextureSlot& slot = getTextureSlot(handle);
         return slot.DescriptorSet;
+    }
+
+    const PointLight& VulkanResourceManager::GetPointLight(PointLightHandle handle) {
+        PointLightSlot& slot = getPointLightSlot(handle);
+        return slot.Resource.value();
     }
 
     VulkanResourceManager::MeshSlot& VulkanResourceManager::getMeshSlot(MeshHandle handle) {
@@ -222,6 +295,17 @@ namespace deoxy::graphics::vulkan {
         MaterialSlot& slot = m_materials[handle.Index];
         CheckBool(slot.Generation == handle.Generation, "Material handle generation does not match");
         CheckBool(slot.Resource.has_value(), "Material handle refers to a destroyed material");
+
+        return slot;
+    }
+
+    VulkanResourceManager::PointLightSlot& VulkanResourceManager::getPointLightSlot(PointLightHandle handle) {
+        CheckBool(handle.IsValid(), "Received an invalid point light handle");
+        CheckBool(handle.Index < m_pointLights.size(), "Point Light handle index is out of bounds");
+
+        PointLightSlot& slot = m_pointLights[handle.Index];
+        CheckBool(slot.Generation == handle.Generation, "Point Light handle generation does not match");
+        CheckBool(slot.Resource.has_value(), "Point Light handle refers to a destroyed point light");
 
         return slot;
     }

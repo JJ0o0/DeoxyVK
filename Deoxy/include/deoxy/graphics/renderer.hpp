@@ -1,6 +1,8 @@
 #pragma once
 
 #include <deoxy/graphics/lighting/directional_light.hpp>
+#include <deoxy/graphics/lighting/ambient_light.hpp>
+#include <deoxy/graphics/lighting/point_light.hpp>
 #include <deoxy/graphics/graphical_handles.hpp>
 #include <deoxy/graphics/mesh_data.hpp>
 #include <deoxy/graphics/texture.hpp>
@@ -42,8 +44,14 @@ namespace deoxy::graphics {
             MaterialHandle CreateMaterial(const MaterialCreateInfo& createInfo);
             void DestroyMaterial(MaterialHandle handle);
 
+            PointLightHandle CreatePointLight(const PointLight& light);
+            void UpdatePointLight(PointLightHandle handle, const PointLight& light);
+            void DestroyPointLight(PointLightHandle handle);
+            PointLight GetPointLight(PointLightHandle handle);
+
             void SetCamera(const math::Mat4& view, const math::Mat4& projection);
             void SetDirectionalLight(const DirectionalLight& light);
+            void SetAmbientLight(const AmbientLight& light);
         private:
             struct Impl;
             std::unique_ptr<Impl> m_impl;

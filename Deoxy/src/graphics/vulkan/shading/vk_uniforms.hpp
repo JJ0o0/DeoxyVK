@@ -3,20 +3,39 @@
 #include <deoxy/graphics/color.hpp>
 #include <deoxy/math/vec3.hpp>
 #include <deoxy/math/mat4.hpp>
+#include <cstddef>
 #include <volk.h>
 #include <array>
 
 namespace deoxy::graphics::vulkan {
+    struct AmbientLightUniformData {
+        math::Vec3 LightColor{1.0f};
+        float Intensity = 0.15f;
+    };
+
     struct DirectionalLightUniformData {
         math::Vec3 Direction{0.0f, -1.0f, 0.0f};
-        float Intensity = 1.0f;
+        float Intensity = 0.0f;
         Color LightColor{1.0f};
     };
+
+    struct PointLightUniformData {
+        math::Vec3 Position{0.0f, 0.0f, 0.0f};
+        float Range = 0.0f;
+        math::Vec3 LightColor{1.0f};
+        float Intensity = 0.0f;
+    };
+
+    inline constexpr size_t MAX_POINT_LIGHTS = 16;
 
     struct FrameUniformData {
         math::Mat4 View{1.0f};
         math::Mat4 Projection{1.0f};
-        DirectionalLightUniformData DirectionalLight;
+        AmbientLightUniformData AmbientLight{};
+        DirectionalLightUniformData DirectionalLight{};
+
+        uint32_t PointLightCount = 0;
+        alignas(16) std::array<PointLightUniformData, MAX_POINT_LIGHTS> PointLights{};
     };
 
     inline std::array<VkDescriptorSetLayoutBinding, 1> CameraBindings {

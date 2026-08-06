@@ -83,6 +83,7 @@ namespace deoxy::graphics {
         m_activeImageIndex = imageIndex;
         m_swapchainSuboptimal = acquireResult == VK_SUBOPTIMAL_KHR;
 
+        m_resourceManager.WritePointLights(m_frameData);
         frame.GetCameraBuffer().Upload(&m_frameData, sizeof(m_frameData));
 
         // Não reseta a cerca antes do acquire
@@ -357,6 +358,23 @@ namespace deoxy::graphics {
         m_resourceManager.DestroyMaterial(handle);
     }
 
+    PointLightHandle VulkanContext::CreatePointLight(const PointLight& light) {
+        return m_resourceManager.CreatePointLight(light);
+    }
+
+    void VulkanContext::UpdatePointLight(PointLightHandle handle, const PointLight& light) {
+        m_resourceManager.UpdatePointLight(handle, light);
+    }
+
+    PointLight VulkanContext::GetPointLight(PointLightHandle handle) {
+        return m_resourceManager.GetPointLight(handle);
+    }
+
+    void VulkanContext::DestroyPointLight(PointLightHandle handle) {
+        vulkan::CheckBool(!m_frameActive, "Cannot destroy a point light during an active frame");
+        m_resourceManager.DestroyPointLight(handle);
+    }
+
     void VulkanContext::SetCamera(const math::Mat4& view, const math::Mat4& projection) {
         m_frameData.View = view;
         m_frameData.Projection = projection;
@@ -367,6 +385,17 @@ namespace deoxy::graphics {
             .Direction = light.Direction,
             .Intensity = light.Intensity,
             .LightColor = light.LightColor
+        };
+    }
+
+    void VulkanContext::SetAmbientLight(const AmbientLight& light) {
+        m_frameData.AmbientLight = {
+            .LightColor = math::Vec3{
+                light.LightColor.R,
+                light.LightColor.G,
+                light.LightColor.B
+            },
+            .Intensity = light.Intensity
         };
     }
 

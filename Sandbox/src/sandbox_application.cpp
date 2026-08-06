@@ -17,11 +17,10 @@ void SandboxApplication::OnStart() {
     const auto clearColor = ParseHexColor32("#1B1B1E").value();
     renderer.SetClearColor(clearColor);
 
-    // Configurando o sol
-    m_sun = DirectionalLight {
-        .Intensity = 1.0f,
-        .LightColor = Color{1.0f, 0.8f, 0.6f},
-    };
+    renderer.SetAmbientLight(AmbientLight{
+        .Intensity = 0.06f,
+        .LightColor = {0.65f, 0.75f, 1.0f},
+    });
 
     // Criando o objeto do cubo
     MeshData cube = MeshGenerator::CreateCube(1.0f);
@@ -56,6 +55,13 @@ void SandboxApplication::OnStart() {
         .Albedo = m_minecraftDirt,
     });
 
+    m_pointLight = renderer.CreatePointLight({
+        .Position = Vec3{0.0f, 1.5f, 1.0f},
+        .Range = 5.0f,
+        .LightColor = Color{1.0f, 0.2f, 0.05f},
+        .Intensity = 3.0f
+    });
+
     // Setando configurações da janela
     auto& window = GetWindow();
     window.SetIcon("assets/icon.png");
@@ -70,16 +76,6 @@ void SandboxApplication::OnUpdate(float deltaTime) {
     // Setando a camera
     if (m_mouseLocked) m_camera.Update(input, deltaTime);
     renderer.SetCamera(m_camera.GetView(), m_camera.GetProjection(window.GetAspectRatio()));
-
-    // Atualizando a luz do sol
-    const float lightRotationSpeed = 35.0f;
-    m_lightRotation += lightRotationSpeed * deltaTime;
-
-    const float lightAngle = ToRadians(m_lightRotation);
-    const Vec3 lightDirection { Cos(lightAngle), -0.65f, Sin(lightAngle) };
-
-    m_sun.Direction = lightDirection;
-    renderer.SetDirectionalLight(m_sun);
 
     if (input.WasPressed(Key::Escape)) {
         m_mouseLocked = !m_mouseLocked;
@@ -113,7 +109,9 @@ void SandboxApplication::OnQuit() {
     // Destruindo tudo
     auto& renderer = GetRenderer();
     renderer.DestroyMaterial(m_checkerMaterial);
+    renderer.DestroyMaterial(m_minecraftDirtMaterial);
     renderer.DestroyTexture(m_checker);
+    renderer.DestroyTexture(m_minecraftDirt);
     renderer.DestroyMesh(m_mesh);
 
     Logger::Info("Sandbox stopped");
