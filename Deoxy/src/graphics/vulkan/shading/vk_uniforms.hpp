@@ -22,11 +22,27 @@ namespace deoxy::graphics::vulkan {
     struct PointLightUniformData {
         math::Vec3 Position{0.0f, 0.0f, 0.0f};
         float Range = 0.0f;
+
         math::Vec3 LightColor{1.0f};
         float Intensity = 0.0f;
     };
 
+    struct SpotLightUniformData {
+        math::Vec3 Position{0.0f};
+        float Range = 0.0f;
+
+        math::Vec3 Direction{0.0f, -1.0f, 0.0f};
+        float InnerAngleCos = 20.0f;
+
+        math::Vec3 LightColor{1.0f};
+        float Intensity = 0.0f;
+
+        float OuterAngleCos = 30.0f;
+        std::array<float, 3> Padding{};
+    };
+
     inline constexpr size_t MAX_POINT_LIGHTS = 16;
+    inline constexpr size_t MAX_SPOT_LIGHTS = 8;
 
     struct FrameUniformData {
         math::Mat4 View{1.0f};
@@ -36,6 +52,9 @@ namespace deoxy::graphics::vulkan {
 
         uint32_t PointLightCount = 0;
         alignas(16) std::array<PointLightUniformData, MAX_POINT_LIGHTS> PointLights{};
+
+        uint32_t SpotLightCount = 0;
+        alignas(16) std::array<SpotLightUniformData, MAX_SPOT_LIGHTS> SpotLights{};
     };
 
     inline std::array<VkDescriptorSetLayoutBinding, 1> CameraBindings {

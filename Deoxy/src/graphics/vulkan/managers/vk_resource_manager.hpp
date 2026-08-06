@@ -6,6 +6,7 @@
 #include "../graphical/vk_mesh.hpp"
 
 #include <deoxy/graphics/lighting/point_light.hpp>
+#include <deoxy/graphics/lighting/spot_light.hpp>
 #include <deoxy/graphics/graphical_handles.hpp>
 #include <deoxy/graphics/image_data.hpp>
 #include <deoxy/graphics/material.hpp>
@@ -48,12 +49,20 @@ namespace deoxy::graphics::vulkan {
             void WritePointLights(FrameUniformData& data) const;
             void UpdatePointLight(PointLightHandle handle, const PointLight& light);
             void DestroyPointLight(PointLightHandle handle);
+            bool IsPointLightValid(PointLightHandle handle) const;
+
+            std::optional<SpotLightHandle> CreateSpotLight(const SpotLight& light);
+            void WriteSpotLights(FrameUniformData& data) const;
+            void UpdateSpotLight(SpotLightHandle handle, const SpotLight& light);
+            void DestroySpotLight(SpotLightHandle handle);
+            bool IsSpotLightValid(SpotLightHandle handle) const;
 
             VulkanMesh& GetMesh(MeshHandle handle);
             const MaterialCreateInfo& GetMaterial(MaterialHandle handle);
             VkDescriptorSet GetTextureDescriptorSet(TextureHandle handle);
 
             const PointLight& GetPointLight(PointLightHandle handle);
+            const SpotLight& GetSpotLight(SpotLightHandle handle);
         private:
             VulkanDevice& m_device;
             VulkanAllocator& m_allocator;
@@ -70,17 +79,20 @@ namespace deoxy::graphics::vulkan {
             using MeshSlot = ResourceSlot<VulkanMesh>;
             using MaterialSlot = ResourceSlot<MaterialCreateInfo>;
             using PointLightSlot = ResourceSlot<PointLight>;
+            using SpotLightSlot = ResourceSlot<SpotLight>;
 
             MeshSlot& getMeshSlot(MeshHandle handle);
             TextureSlot& getTextureSlot(TextureHandle handle);
             MaterialSlot& getMaterialSlot(MaterialHandle handle);
             PointLightSlot& getPointLightSlot(PointLightHandle handle);
+            SpotLightSlot& getSpotLightSlot(SpotLightHandle handle);
 
             TextureHandle m_defaultTexture;
             std::vector<MeshSlot> m_meshes;
             std::vector<TextureSlot> m_textures;
             std::vector<MaterialSlot> m_materials;
             std::vector<PointLightSlot> m_pointLights;
+            std::vector<SpotLightSlot> m_spotLights;
 
             void initializeTextureSlot(const VulkanTextureCreateInfo& createInfo, TextureSlot& slot, const ImageData& data);
             void createDefaultWhiteTexture();

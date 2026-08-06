@@ -1,7 +1,5 @@
 #include <sandbox_application.hpp>
 
-
-
 SandboxApplication::SandboxApplication()
     : Application({
         .Title = "DeoxyVK Sandbox",
@@ -19,10 +17,23 @@ void SandboxApplication::OnStart() {
     const auto clearColor = ParseHexColor32("#1B1B1E").value();
     renderer.SetClearColor(clearColor);
 
-    renderer.SetAmbientLight(AmbientLight{
-        .Intensity = 0.06f,
-        .LightColor = {0.65f, 0.75f, 1.0f},
+    // Configurando iluminação
+    renderer.SetAmbientLight(AmbientLight {
+        .Intensity = 0.08f,
+        .LightColor = ToColor(clearColor),
     });
+
+    m_spotLight = renderer.CreateSpotLight({
+        .Position = m_camera.GetPosition(),
+        .Range = 9.0f,
+        .Direction = m_camera.GetForward(),
+        .InnerAngle = 8.0f,
+        .OuterAngle = 16.0f,
+        .LightColor = Color{1.0f, 0.78f, 0.52f},
+        .Intensity = 4.5f,
+    });
+
+    if (!m_spotLight.has_value()) Logger::Warn("Spot Light couldn't be created");
 
     // Criando o objeto do cubo
     MeshData cube = MeshGenerator::CreateCube(1.0f);
@@ -42,34 +53,6 @@ void SandboxApplication::OnStart() {
         .UVScale = Vec2{2.0f}
     });
 
-    createPointLight(renderer, {
-        .Position = Vec3{0.0f, 1.5f, 0.0f},
-        .Range = 5.0f,
-        .LightColor = Color{1.0f, 0.2f, 0.05f},
-        .Intensity = 3.0f
-    });
-
-    createPointLight(renderer, {
-        .Position = Vec3{0.0f, -1.5f, 0.0f},
-        .Range = 5.0f,
-        .LightColor = Color{0.2f, 1.0f, 0.05f},
-        .Intensity = 3.0f
-    });
-
-    createPointLight(renderer, {
-        .Position = Vec3{1.5f, 0.0f, 0.0f},
-        .Range = 5.0f,
-        .LightColor = Color{0.2f, 0.05f, 1.0f},
-        .Intensity = 3.0f
-    });
-
-    createPointLight(renderer, {
-        .Position = Vec3{0.0f, 0.0f, 1.5f},
-        .Range = 5.0f,
-        .LightColor = Color{1.0f, 0.05f, 1.0f},
-        .Intensity = 3.0f
-    });
-
     // Setando configurações da janela
     auto& window = GetWindow();
     window.SetIcon("assets/icon.png");
@@ -84,6 +67,25 @@ void SandboxApplication::OnUpdate(float deltaTime) {
     // Setando a camera
     if (m_mouseLocked) m_camera.Update(input, deltaTime);
     renderer.SetCamera(m_camera.GetView(), m_camera.GetProjection(window.GetAspectRatio()));
+
+    if (m_spotLight && renderer.IsSpotLightValid(*m_spotLight)) {
+        SpotLight flashlight = renderer.GetSpotLight(*m_spotLight);
+        Vec3 flashlightOffset{0.0f};
+
+        const float positionSpeed = 12.0f;
+        const float directionSpeed = 8.0f;
+
+        const Vec3 targetPos = m_camera.GetPosition() + flashlightOffset;
+        const Vec3 targetDir = m_camera.GetForward();
+
+        const float posWeight = ExponentialSmoothing(positionSpeed, deltaTime);
+        const float dirWeight = ExponentialSmoothing(directionSpeed, deltaTime);
+
+        flashlight.Position = Lerp(flashlight.Position, targetPos, posWeight);
+        flashlight.Direction = Normalize(Lerp(flashlight.Direction, targetDir, dirWeight));
+
+        renderer.UpdateSpotLight(*m_spotLight, flashlight);
+    }
 
     if (input.WasPressed(Key::Escape)) {
         m_mouseLocked = !m_mouseLocked;
@@ -108,22 +110,14 @@ void SandboxApplication::OnRender() {
 void SandboxApplication::OnQuit() {
     // Destruindo tudo
     auto& renderer = GetRenderer();
-    for (auto& light : m_pointLights) renderer.DestroyPointLight(light);
+
+    if (m_spotLight.has_value() && renderer.IsSpotLightValid(*m_spotLight)) {
+        renderer.DestroySpotLight(*m_spotLight);
+    }
 
     renderer.DestroyMaterial(m_checkerMaterial);
     renderer.DestroyTexture(m_checker);
     renderer.DestroyMesh(m_mesh);
 
     Logger::Info("Sandbox stopped");
-}
-
-void SandboxApplication::createPointLight(Renderer& renderer, const PointLight& light) {
-    const auto handle = renderer.CreatePointLight(light);
-
-    if (!handle) {
-        Logger::Warn("Point Light couldn't be created: limit exceeded.");
-        return;
-    }
-
-    m_pointLights.push_back(*handle);
 }

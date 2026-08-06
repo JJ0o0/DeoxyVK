@@ -28,8 +28,25 @@ struct DirectionalLightUniformData {
 struct PointLightUniformData {
     float3 Position;
     float Range;
+
     float3 LightColor;
     float Intensity;
+};
+
+struct SpotLightUniformData {
+    float3 Position;
+    float Range;
+
+    float3 Direction;
+    float InnerAngleCos;
+
+    float3 LightColor;
+    float Intensity;
+
+    float OuterAngleCos;
+    float SpotLightPadding0;
+    float SpotLightPadding1;
+    float SpotLightPadding2;
 };
 
 struct FrameUniformData {
@@ -45,6 +62,13 @@ struct FrameUniformData {
     uint PointLightPadding2;
 
     PointLightUniformData PointLights[16];
+
+    uint SpotLightCount;
+    uint SpotLightPadding0;
+    uint SpotLightPadding1;
+    uint SpotLightPadding2;
+
+    SpotLightUniformData SpotLights[8];
 };
 
 struct PushConstantsData {
@@ -85,6 +109,7 @@ float4 fragmentMain(VertexOutput input) : SV_Target {
     float2 scaledUV = input.UV * PushConstants.MaterialUVScale + PushConstants.MaterialUVOffset;
     float4 textureColor = AlbedoTexture.Sample(scaledUV);
 
+    // DIRECTIONAL
     float3 normal = normalize(input.Normal);
     float3 lightDir = normalize(-FrameData.DirectionalLight.Direction);
 
@@ -95,6 +120,7 @@ float4 fragmentMain(VertexOutput input) : SV_Target {
 
     float3 lighting = ambient + diffuse;
 
+    // POINT LIGHTS
     for (uint i = 0; i < FrameData.PointLightCount; ++i) {
         PointLightUniformData light = FrameData.PointLights[i];
 
@@ -110,6 +136,31 @@ float4 fragmentMain(VertexOutput input) : SV_Target {
         float3 pointDiffuse = light.LightColor * light.Intensity * diffuseFactor * attenuation;
 
         lighting += pointDiffuse;
+    }
+
+    // SPOT LIGHTS
+    for (uint i = 0; i < FrameData.SpotLightCount; ++i) {
+        SpotLightUniformData light = FrameData.SpotLights[i];
+
+        float3 toLight = light.Position - input.WorldPosition;
+        float distanceToLight = length(toLight);
+
+        float3 spotLightDir = toLight / max(distanceToLight, 0.0001);
+
+        float diffuseFactor = max(dot(normal, spotLightDir), 0.0);
+        float rangeFactor = saturate(1.0 - distanceToLight / max(light.Range, 0.0001));
+
+        float attenuation = rangeFactor * rangeFactor;
+
+        float3 lightToFragmentDir = -spotLightDir;
+
+        float coneCos = dot(normalize(light.Direction), lightToFragmentDir);
+        float coneFactor = saturate((coneCos - light.OuterAngleCos) / max(light.InnerAngleCos - light.OuterAngleCos, 0.0001));
+        coneFactor = coneFactor * coneFactor * (3.0 - 2.0 * coneFactor);
+
+        float3 spotDiffuse = light.LightColor * light.Intensity * diffuseFactor * attenuation * coneFactor;
+
+        lighting += spotDiffuse;
     }
 
     float4 albedo = textureColor * input.Color * PushConstants.MaterialTint;

@@ -197,10 +197,6 @@ namespace deoxy::graphics::vulkan {
         if (m_pointLights.size() >= MAX_POINT_LIGHTS) return std::nullopt;
 
         // Se não encontrar, cria um novo
-        CheckBool(m_pointLights.size() < static_cast<size_t>(
-            PointLightHandle::InvalidIndex
-        ), "Point Light storage has reached its maximum capacity");
-
         const auto index = static_cast<uint32_t>(m_pointLights.size());
         m_pointLights.emplace_back();
 
@@ -248,6 +244,90 @@ namespace deoxy::graphics::vulkan {
         ++slot.Generation;
     }
 
+    bool VulkanResourceManager::IsPointLightValid(PointLightHandle handle) const {
+        if (!handle.IsValid()) return false;
+        if (handle.Index >= m_pointLights.size()) return false;
+
+        const PointLightSlot& slot = m_pointLights[handle.Index];
+        return slot.Generation == handle.Generation && slot.Resource.has_value();
+    }
+
+    std::optional<SpotLightHandle> VulkanResourceManager::CreateSpotLight(const SpotLight& light) {
+        // Primeiro procura um espaço liberado
+        for (uint32_t i = 0; i < m_spotLights.size(); ++i) {
+            SpotLightSlot& slot = m_spotLights[i];
+
+            if (!slot.Resource.has_value()) {
+                slot.Resource.emplace(light);
+
+                return SpotLightHandle {
+                    .Index = i,
+                    .Generation = slot.Generation
+                };
+            }
+        }
+
+        if (m_spotLights.size() >= MAX_SPOT_LIGHTS) return std::nullopt;
+
+        // Se não encontrar, cria um novo
+        const auto index = static_cast<uint32_t>(m_spotLights.size());
+        m_spotLights.emplace_back();
+
+        SpotLightSlot& slot = m_spotLights.back();
+        slot.Resource.emplace(light);
+
+        return SpotLightHandle {
+            .Index = index,
+            .Generation = slot.Generation
+        };
+    }
+
+    void VulkanResourceManager::WriteSpotLights(FrameUniformData& data) const {
+        data.SpotLightCount = 0;
+
+        for (const SpotLightSlot& slot : m_spotLights) {
+            if (!slot.Resource.has_value()) continue;
+
+            CheckBool(data.SpotLightCount < MAX_SPOT_LIGHTS, "Maximum active spot light count reached");
+
+            const SpotLight& src = slot.Resource.value();
+            SpotLightUniformData& dest = data.SpotLights[data.SpotLightCount];
+
+            dest.Position = src.Position;
+            dest.Range = src.Range;
+            dest.Direction = src.Direction;
+            dest.InnerAngleCos = math::Cos(math::ToRadians(src.InnerAngle));
+            dest.OuterAngleCos = math::Cos(math::ToRadians(src.OuterAngle));
+            dest.LightColor = {
+                src.LightColor.R,
+                src.LightColor.G,
+                src.LightColor.B
+            };
+            dest.Intensity = src.Intensity;
+
+            ++data.SpotLightCount;
+        }
+    }
+
+    void VulkanResourceManager::UpdateSpotLight(SpotLightHandle handle, const SpotLight& light) {
+        SpotLightSlot& slot = getSpotLightSlot(handle);
+        slot.Resource = light;
+    }
+
+    void VulkanResourceManager::DestroySpotLight(SpotLightHandle handle) {
+        SpotLightSlot& slot = getSpotLightSlot(handle);
+        slot.Resource.reset();
+        ++slot.Generation;
+    }
+
+    bool VulkanResourceManager::IsSpotLightValid(SpotLightHandle handle) const {
+        if (!handle.IsValid()) return false;
+        if (handle.Index >= m_spotLights.size()) return false;
+
+        const SpotLightSlot& slot = m_spotLights[handle.Index];
+        return slot.Generation == handle.Generation && slot.Resource.has_value();
+    }
+
     VulkanMesh& VulkanResourceManager::GetMesh(MeshHandle handle) {
         MeshSlot& slot = getMeshSlot(handle);
         return slot.Resource.value();
@@ -265,6 +345,11 @@ namespace deoxy::graphics::vulkan {
 
     const PointLight& VulkanResourceManager::GetPointLight(PointLightHandle handle) {
         PointLightSlot& slot = getPointLightSlot(handle);
+        return slot.Resource.value();
+    }
+
+    const SpotLight& VulkanResourceManager::GetSpotLight(SpotLightHandle handle) {
+        SpotLightSlot& slot = getSpotLightSlot(handle);
         return slot.Resource.value();
     }
 
@@ -308,6 +393,17 @@ namespace deoxy::graphics::vulkan {
         PointLightSlot& slot = m_pointLights[handle.Index];
         CheckBool(slot.Generation == handle.Generation, "Point Light handle generation does not match");
         CheckBool(slot.Resource.has_value(), "Point Light handle refers to a destroyed point light");
+
+        return slot;
+    }
+
+    VulkanResourceManager::SpotLightSlot& VulkanResourceManager::getSpotLightSlot(SpotLightHandle handle) {
+        CheckBool(handle.IsValid(), "Received an invalid spot light handle");
+        CheckBool(handle.Index < m_spotLights.size(), "Spot Light handle index is out of bounds");
+
+        SpotLightSlot& slot = m_spotLights[handle.Index];
+        CheckBool(slot.Generation == handle.Generation, "Spot Light handle generation does not match");
+        CheckBool(slot.Resource.has_value(), "Spot Light handle refers to a destroyed spot light");
 
         return slot;
     }

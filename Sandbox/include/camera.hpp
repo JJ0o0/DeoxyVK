@@ -24,6 +24,9 @@ class Camera {
         Mat4 GetView() const;
         Mat4 GetProjection(float aspectRatio) const;
 
+        const Vec3& GetPosition() const { return m_position; }
+        const Vec3& GetForward() const { return m_forward; }
+
         const CameraProperties& GetProperties() const { return m_properties; }
     private:
         CameraProperties m_properties;

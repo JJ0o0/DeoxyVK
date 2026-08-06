@@ -64,6 +64,13 @@ namespace deoxy::graphics {
             void UpdatePointLight(PointLightHandle handle, const PointLight& light);
             void DestroyPointLight(PointLightHandle handle);
             PointLight GetPointLight(PointLightHandle handle);
+            bool IsPointLightValid(PointLightHandle handle) const;
+
+            std::optional<SpotLightHandle> CreateSpotLight(const SpotLight& light);
+            void UpdateSpotLight(SpotLightHandle handle, const SpotLight& light);
+            void DestroySpotLight(SpotLightHandle handle);
+            SpotLight GetSpotLight(SpotLightHandle handle);
+            bool IsSpotLightValid(SpotLightHandle handle) const;
 
             void SetCamera(const math::Mat4& view, const math::Mat4& projection);
             void SetDirectionalLight(const DirectionalLight& light);

@@ -86,6 +86,30 @@ namespace deoxy::graphics {
         return m_impl->Context.GetPointLight(handle);
     }
 
+    bool Renderer::IsPointLightValid(PointLightHandle handle) const {
+        return m_impl->Context.IsPointLightValid(handle);
+    }
+
+    std::optional<SpotLightHandle> Renderer::CreateSpotLight(const SpotLight& light) {
+        return m_impl->Context.CreateSpotLight(light);
+    }
+
+    void Renderer::UpdateSpotLight(SpotLightHandle handle, const SpotLight& light) {
+        m_impl->Context.UpdateSpotLight(handle, light);
+    }
+
+    void Renderer::DestroySpotLight(SpotLightHandle handle) {
+        m_impl->Context.DestroySpotLight(handle);
+    }
+
+    SpotLight Renderer::GetSpotLight(SpotLightHandle handle) {
+        return m_impl->Context.GetSpotLight(handle);
+    }
+
+    bool Renderer::IsSpotLightValid(SpotLightHandle handle) const {
+        return m_impl->Context.IsSpotLightValid(handle);
+    }
+
     void Renderer::SetCamera(const math::Mat4& view, const math::Mat4& projection) {
         m_impl->Context.SetCamera(view, projection);
     }

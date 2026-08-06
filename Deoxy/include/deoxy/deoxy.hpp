@@ -17,9 +17,10 @@
 #include <deoxy/graphics/material.hpp>
 #include <deoxy/graphics/texture.hpp>
 #include <deoxy/graphics/vertex.hpp>
-
 #include <deoxy/graphics/lighting/ambient_light.hpp>
 #include <deoxy/graphics/lighting/directional_light.hpp>
+#include <deoxy/graphics/lighting/point_light.hpp>
+#include <deoxy/graphics/lighting/spot_light.hpp>
 
 #include <deoxy/platform/window.hpp>
 #include <deoxy/platform/message_box.hpp>

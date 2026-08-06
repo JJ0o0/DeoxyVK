@@ -21,13 +21,15 @@ namespace deoxy::graphics::vulkan {
     DEOXY_VK_VALIDATE_GPU_MEMBER(PushConstants, MaterialUVScale, 80);
     DEOXY_VK_VALIDATE_GPU_MEMBER(PushConstants, MaterialUVOffset, 88);
 
-    DEOXY_VK_VALIDATE_GPU_STRUCT(FrameUniformData, 704);
+    DEOXY_VK_VALIDATE_GPU_STRUCT(FrameUniformData, 1232);
     DEOXY_VK_VALIDATE_GPU_MEMBER(FrameUniformData, View, 0);
     DEOXY_VK_VALIDATE_GPU_MEMBER(FrameUniformData, Projection, 64);
     DEOXY_VK_VALIDATE_GPU_MEMBER(FrameUniformData, AmbientLight, 128);
     DEOXY_VK_VALIDATE_GPU_MEMBER(FrameUniformData, DirectionalLight, 144);
     DEOXY_VK_VALIDATE_GPU_MEMBER(FrameUniformData, PointLightCount, 176);
     DEOXY_VK_VALIDATE_GPU_MEMBER(FrameUniformData, PointLights, 192);
+    DEOXY_VK_VALIDATE_GPU_MEMBER(FrameUniformData, SpotLightCount, 704);
+    DEOXY_VK_VALIDATE_GPU_MEMBER(FrameUniformData, SpotLights, 720);
 
     DEOXY_VK_VALIDATE_GPU_STRUCT(AmbientLightUniformData, 16);
     DEOXY_VK_VALIDATE_GPU_MEMBER(AmbientLightUniformData, LightColor, 0);
@@ -43,6 +45,15 @@ namespace deoxy::graphics::vulkan {
     DEOXY_VK_VALIDATE_GPU_MEMBER(PointLightUniformData, Range, 12);
     DEOXY_VK_VALIDATE_GPU_MEMBER(PointLightUniformData, LightColor, 16);
     DEOXY_VK_VALIDATE_GPU_MEMBER(PointLightUniformData, Intensity, 28);
+
+    DEOXY_VK_VALIDATE_GPU_STRUCT(SpotLightUniformData, 64);
+    DEOXY_VK_VALIDATE_GPU_MEMBER(SpotLightUniformData, Position, 0);
+    DEOXY_VK_VALIDATE_GPU_MEMBER(SpotLightUniformData, Range, 12);
+    DEOXY_VK_VALIDATE_GPU_MEMBER(SpotLightUniformData, Direction, 16);
+    DEOXY_VK_VALIDATE_GPU_MEMBER(SpotLightUniformData, InnerAngleCos, 28);
+    DEOXY_VK_VALIDATE_GPU_MEMBER(SpotLightUniformData, LightColor, 32);
+    DEOXY_VK_VALIDATE_GPU_MEMBER(SpotLightUniformData, Intensity, 44);
+    DEOXY_VK_VALIDATE_GPU_MEMBER(SpotLightUniformData, OuterAngleCos, 48);
 }
 
 namespace deoxy::graphics {

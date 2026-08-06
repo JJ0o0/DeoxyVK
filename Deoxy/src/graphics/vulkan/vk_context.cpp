@@ -84,6 +84,7 @@ namespace deoxy::graphics {
         m_swapchainSuboptimal = acquireResult == VK_SUBOPTIMAL_KHR;
 
         m_resourceManager.WritePointLights(m_frameData);
+        m_resourceManager.WriteSpotLights(m_frameData);
         frame.GetCameraBuffer().Upload(&m_frameData, sizeof(m_frameData));
 
         // Não reseta a cerca antes do acquire
@@ -370,9 +371,34 @@ namespace deoxy::graphics {
         return m_resourceManager.GetPointLight(handle);
     }
 
+    bool VulkanContext::IsPointLightValid(PointLightHandle handle) const {
+        return m_resourceManager.IsPointLightValid(handle);
+    }
+
     void VulkanContext::DestroyPointLight(PointLightHandle handle) {
         vulkan::CheckBool(!m_frameActive, "Cannot destroy a point light during an active frame");
         m_resourceManager.DestroyPointLight(handle);
+    }
+
+    std::optional<SpotLightHandle> VulkanContext::CreateSpotLight(const SpotLight& light) {
+        return m_resourceManager.CreateSpotLight(light);
+    }
+
+    void VulkanContext::UpdateSpotLight(SpotLightHandle handle, const SpotLight& light) {
+        m_resourceManager.UpdateSpotLight(handle, light);
+    }
+
+    SpotLight VulkanContext::GetSpotLight(SpotLightHandle handle) {
+        return m_resourceManager.GetSpotLight(handle);
+    }
+
+    bool VulkanContext::IsSpotLightValid(SpotLightHandle handle) const {
+        return m_resourceManager.IsSpotLightValid(handle);
+    }
+
+    void VulkanContext::DestroySpotLight(SpotLightHandle handle) {
+        vulkan::CheckBool(!m_frameActive, "Cannot destroy a spot light during an active frame");
+        m_resourceManager.DestroySpotLight(handle);
     }
 
     void VulkanContext::SetCamera(const math::Mat4& view, const math::Mat4& projection) {
